@@ -16,18 +16,26 @@
 
             @if (_dummyCatalog is null)
             {
-                <div class="spinner"></div>
+                <div class="book-grid">
+                    @for (var i = 0; i < 8; i++)
+                    {
+                        <BookCardSkeleton />
+                    }
+                </div>
             }
             else
             {
                 <div class="book-grid">
-                    @foreach (var book in _dummyCatalog)
+                    @for (var i = 0; i < _dummyCatalog.Count; i++)
                     {
-                        <BookCard Title="@book.Title"
-                                  CoverImageUrl="@book.CoverImage"
-                                  Price="@book.Price"
-                                  Description="@book.Description"
-                                  OnActionClick="OpenComingSoon" />
+                        var book = _dummyCatalog[i];
+                        <div style="--card-index: @i">
+                            <BookCard Title="@book.Title"
+                                      CoverImageUrl="@book.CoverImage"
+                                      Price="@book.Price"
+                                      Description="@book.Description"
+                                      OnActionClick="OpenComingSoon" />
+                        </div>
                     }
                 </div>
             }
@@ -40,7 +48,12 @@
 
             @if (_loading)
             {
-                <div class="spinner"></div>
+                <div class="book-grid">
+                    @for (var i = 0; i < 4; i++)
+                    {
+                        <BookCardSkeleton />
+                    }
+                </div>
             }
             else if (_error is not null)
             {
@@ -53,14 +66,17 @@
             else
             {
                 <div class="book-grid">
-                    @foreach (var book in _books)
+                    @for (var i = 0; i < _books.Count; i++)
                     {
-                        <BookCard Title="@(book.Title ?? "Untitled")"
-                                  CoverImageUrl="@book.ImageCoverUrl"
-                                  Description="@book.Description"
-                                  ShowPrice="false"
-                                  ActionLabel="Read"
-                                  OnActionClick="() => ReadBook(book)" />
+                        var book = _books[i];
+                        <div style="--card-index: @i">
+                            <BookCard Title="@(book.Title ?? "Untitled")"
+                                      CoverImageUrl="@book.ImageCoverUrl"
+                                      Description="@book.Description"
+                                      ShowPrice="false"
+                                      ActionLabel="Read"
+                                      OnActionClick="() => ReadBook(book)" />
+                        </div>
                     }
                 </div>
             }

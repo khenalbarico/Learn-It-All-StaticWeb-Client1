@@ -2,7 +2,9 @@
 @inject ThemeService ThemeService
 
 <button class="btn btn-ghost theme-toggle" @onclick="Toggle" title="Toggle dark / light mode" aria-label="Toggle dark or light mode">
-    <Icon Name="@(ThemeService.CurrentTheme == AppTheme.Dark ? "sun" : "moon")" />
+    <span class="icon-spin-in" @key="ThemeService.CurrentTheme">
+        <Icon Name="@(ThemeService.CurrentTheme == AppTheme.Dark ? "sun" : "moon")" />
+    </span>
 </button>
 
 @code {

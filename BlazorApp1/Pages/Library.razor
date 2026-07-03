@@ -19,7 +19,12 @@
 
     @if (AuthState.IsInitializing || _loading)
     {
-        <div class="spinner"></div>
+        <div class="book-grid">
+            @for (var i = 0; i < 8; i++)
+            {
+                <BookCardSkeleton />
+            }
+        </div>
     }
     else if (_error is not null)
     {
@@ -32,13 +37,16 @@
     else
     {
         <div class="book-grid">
-            @foreach (var book in _books)
+            @for (var i = 0; i < _books.Count; i++)
             {
-                <BookCard Title="@book.Title"
-                          CoverImageUrl="@book.CoverImageUrl"
-                          Price="@book.Price"
-                          Description="@book.Description"
-                          OnActionClick="OpenComingSoon" />
+                var book = _books[i];
+                <div style="--card-index: @i">
+                    <BookCard Title="@book.Title"
+                              CoverImageUrl="@book.CoverImageUrl"
+                              Price="@book.Price"
+                              Description="@book.Description"
+                              OnActionClick="OpenComingSoon" />
+                </div>
             }
         </div>
     }

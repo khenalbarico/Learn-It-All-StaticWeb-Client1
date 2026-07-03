@@ -10,7 +10,9 @@
         </a>
 
         <button class="nav-burger" @onclick="ToggleMenu" aria-label="Toggle navigation menu">
-            <Icon Name="@(_menuOpen ? "close" : "menu")" Size="24" />
+            <span class="icon-spin-in" @key="_menuOpen">
+                <Icon Name="@(_menuOpen ? "close" : "menu")" Size="24" />
+            </span>
         </button>
 
         <div class="nav-links @(_menuOpen ? "open" : "")">

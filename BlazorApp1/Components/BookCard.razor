@@ -1,5 +1,7 @@
 <div class="book-card">
-    <img class="book-card-cover" src="@_resolvedCover" alt="@Title cover" @onerror="OnImageError" />
+    <div class="book-card-cover-wrap">
+        <img class="book-card-cover" src="@_resolvedCover" alt="@Title cover" @onerror="OnImageError" />
+    </div>
     <div class="book-card-body">
         <div class="book-card-title">@Title</div>
         <div class="book-card-desc">@Description</div>
