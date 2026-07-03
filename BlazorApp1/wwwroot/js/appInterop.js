@@ -18,6 +18,11 @@ export function prefersDarkColorScheme() {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
-export function openInNewTab(url) {
-    window.open(url, '_blank', 'noopener');
+export function createPdfBlobUrl(bytes) {
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    return URL.createObjectURL(blob);
+}
+
+export function revokeBlobUrl(url) {
+    URL.revokeObjectURL(url);
 }

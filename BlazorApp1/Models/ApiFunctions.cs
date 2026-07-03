@@ -7,7 +7,7 @@ public enum ApiFunctions
     GetAllBooks,
     GetBooksByCategory,
     GetMyLibraryBooks,
-    GetBookUrl,
+    StreamBookDocument,
     RecordPurchase,
     CreatePaymentIntent,
     GetPaymentStatus

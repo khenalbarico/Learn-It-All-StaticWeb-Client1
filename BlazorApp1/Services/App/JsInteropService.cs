@@ -39,9 +39,15 @@ public class JsInteropService(IJSRuntime _jsRuntime)
         return await module.InvokeAsync<bool>("prefersDarkColorScheme");
     }
 
-    public async Task OpenInNewTabAsync(string url)
+    public async Task<string> CreatePdfBlobUrlAsync(byte[] bytes)
     {
         var module = await GetModuleAsync();
-        await module.InvokeVoidAsync("openInNewTab", url);
+        return await module.InvokeAsync<string>("createPdfBlobUrl", bytes);
+    }
+
+    public async Task RevokeBlobUrlAsync(string url)
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("revokeBlobUrl", url);
     }
 }

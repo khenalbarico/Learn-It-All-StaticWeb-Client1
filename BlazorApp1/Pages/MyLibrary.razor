@@ -2,7 +2,7 @@
 @inject AuthSessionState AuthState
 @inject IAppService AppService
 @inject LibraryCacheService LibraryCache
-@inject JsInteropService JsInterop
+@inject NavigationManager Nav
 @inject HttpClient Http
 
 <PageTitle>My Library - Learn It All</PageTitle>
@@ -33,7 +33,6 @@
                             <BookCard Title="@book.Title"
                                       CoverImageUrl="@book.CoverImage"
                                       Price="@book.Price"
-                                      Description="@book.Description"
                                       OnActionClick="OpenComingSoon" />
                         </div>
                     }
@@ -72,10 +71,9 @@
                         <div style="--card-index: @i">
                             <BookCard Title="@(book.Title ?? "Untitled")"
                                       CoverImageUrl="@book.ImageCoverUrl"
-                                      Description="@book.Description"
                                       ShowPrice="false"
                                       ActionLabel="Read"
-                                      OnActionClick="() => ReadBook(book)" />
+                                      OnActionClick="() => OnReadClick(book)" />
                         </div>
                     }
                 </div>
@@ -86,12 +84,21 @@
 
 <ComingSoonModal @bind-IsOpen="_comingSoonOpen" />
 
+<DocumentListModal @bind-IsOpen="_docListOpen"
+                    BookTitle="@_selectedBookTitle"
+                    Documents="_selectedBookDocs"
+                    OnDocumentSelected="OnDocumentSelected" />
+
 @code {
     private List<Book> _books = [];
     private bool _loading = true;
     private string? _error;
     private string? _readError;
     private bool _comingSoonOpen;
+    private bool _docListOpen;
+    private string _selectedBookUid = "";
+    private string _selectedBookTitle = "";
+    private List<BookDocs> _selectedBookDocs = [];
     private List<DummyBook>? _dummyCatalog;
 
     protected override async Task OnInitializedAsync()
@@ -137,30 +144,30 @@
         }
     }
 
-    private async Task ReadBook(Book book)
+    private void OnReadClick(Book book)
     {
         _readError = null;
-        var doc = book.Documents.FirstOrDefault();
-        if (doc is null)
+
+        if (book.Documents.Count == 0)
         {
             _readError = "This book doesn't have a readable document yet.";
             return;
         }
 
-        try
+        if (book.Documents.Count == 1)
         {
-            var url = await AppService.GetBookUrl(book.Uid, doc.Uid);
-            await JsInterop.OpenInNewTabAsync(url);
+            Nav.NavigateTo($"/read/{book.Uid}/{book.Documents[0].Uid}");
+            return;
         }
-        catch (ApiUnavailableException ex)
-        {
-            _readError = ex.Message;
-        }
-        catch (Exception)
-        {
-            _readError = "Could not open this book right now. Please try again.";
-        }
+
+        _selectedBookUid = book.Uid;
+        _selectedBookTitle = book.Title ?? "Untitled";
+        _selectedBookDocs = book.Documents;
+        _docListOpen = true;
     }
+
+    private void OnDocumentSelected(BookDocs doc)
+        => Nav.NavigateTo($"/read/{_selectedBookUid}/{doc.Uid}");
 
     private void OpenComingSoon() => _comingSoonOpen = true;
 }

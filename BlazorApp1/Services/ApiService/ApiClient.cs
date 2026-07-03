@@ -78,4 +78,12 @@ public class ApiClient(HttpClient _http, TokenCache _cache, IAppAuthentication _
         var response = await SendWithRetryAsync(() => BuildRequestAsync(apiFunction, payload));
         response.EnsureSuccessStatusCode();
     }
+
+    public async Task<byte[]> GetBytesAsync(ApiFunctions apiFunction, object? payload = null)
+    {
+        var response = await SendWithRetryAsync(() => BuildRequestAsync(apiFunction, payload));
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadAsByteArrayAsync();
+    }
 }

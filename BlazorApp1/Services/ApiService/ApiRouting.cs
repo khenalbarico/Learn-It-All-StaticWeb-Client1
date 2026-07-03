@@ -11,7 +11,7 @@ public class ApiRouting
         [ApiFunctions.GetBooksByCategory] = "GetBooksByCategory",
         [ApiFunctions.CreateUser]         = "CreateUser",
         [ApiFunctions.RecordPurchase]     = "RecordPurchase",
-        [ApiFunctions.GetBookUrl]         = "GetBookUrl",
+        [ApiFunctions.StreamBookDocument] = "StreamBookDocument",
         [ApiFunctions.GetMyLibraryBooks]  = "GetMyLibraryBooks",
         [ApiFunctions.CreatePaymentIntent] = "CreatePaymentIntent",
         [ApiFunctions.GetPaymentStatus]     = "GetPaymentStatus",

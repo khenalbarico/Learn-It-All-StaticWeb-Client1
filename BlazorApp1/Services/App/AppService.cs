@@ -41,8 +41,8 @@ public class AppService(IApiClient _api) : IAppService
             PriceAtPurchase = priceAtPurchase
         });
 
-    public Task<string> GetBookUrl(string bookUid, string docUid)
-        => _api.GetAsync<string>(ApiFunctions.GetBookUrl, new { BookUid = bookUid, DocUid = docUid });
+    public Task<byte[]> GetBookDocumentBytes(string bookUid, string docUid)
+        => _api.GetBytesAsync(ApiFunctions.StreamBookDocument, new { BookUid = bookUid, DocUid = docUid });
 
     public Task<List<Book>> GetMyLibraryBooks()
         => _api.GetAsync<List<Book>>(ApiFunctions.GetMyLibraryBooks);

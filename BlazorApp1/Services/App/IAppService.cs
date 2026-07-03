@@ -9,6 +9,6 @@ public interface IAppService
     Task<UserInfo?> TryGetUserInfo();
     Task CreateUser(string firstName, string lastName, string phoneNumber);
     Task RecordPurchase(string bookUid, string orderId, string purchaseToken, decimal priceAtPurchase);
-    Task<string> GetBookUrl(string bookUid, string docUid);
+    Task<byte[]> GetBookDocumentBytes(string bookUid, string docUid);
     Task<List<Book>> GetMyLibraryBooks();
 }

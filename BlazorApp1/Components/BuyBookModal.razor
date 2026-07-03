@@ -6,59 +6,71 @@
 {
     <div class="modal-backdrop" @onclick="CloseIfAllowed">
         <div class="modal-box qr-modal" @onclick:stopPropagation="true">
-            <h3>@BookTitle</h3>
-
-            @if (_stage == Stage.Loading)
+            @if (_stage == Stage.Details)
             {
-                <div class="spinner"></div>
-                <p class="form-hint">Generating your QR code...</p>
-            }
-            else if (_stage == Stage.Error)
-            {
-                <ErrorBanner Message="@_error" />
-                <button class="btn btn-ghost btn-block" @onclick="Close">Close</button>
-            }
-            else if (_stage == Stage.AwaitingPayment)
-            {
-                <p class="form-hint">Scan with any QR Ph-enabled banking or e-wallet app.</p>
-                <img class="qr-image" src="@_qrImageUrl" alt="QR Ph payment code" />
-                <div class="qr-countdown">@FormatRemaining()</div>
-                <p class="form-hint">Waiting for payment confirmation...</p>
+                <img class="book-detail-cover" src="@ResolvedCover" alt="@BookTitle cover" />
+                <h3>@BookTitle</h3>
+                <p class="form-hint book-detail-desc">@BookDescription</p>
+                <div class="book-detail-price">₱@BookPrice.ToString("N2")</div>
+                <button class="btn btn-primary btn-block" @onclick="StartAsync">Confirm Purchase</button>
                 <button class="btn btn-ghost btn-block" @onclick="Close">Cancel</button>
             }
-            else if (_stage == Stage.Succeeded)
+            else
             {
-                <div class="icon-badge"><Icon Name="check" Size="28" /></div>
-                <h3>Payment successful!</h3>
-                <p class="form-hint">@BookTitle has been added to your library.</p>
-                <button class="btn btn-primary btn-block" @onclick="Close">Done</button>
-            }
-            else if (_stage == Stage.Expired)
-            {
-                <div class="icon-badge icon-badge-danger"><Icon Name="clock" Size="28" /></div>
-                <h3>QR code expired</h3>
-                <p class="form-hint">This code was only valid for 2 minutes. You can generate a new one.</p>
-                @if (_cooldownSeconds > 0)
+                <h3>@BookTitle</h3>
+
+                @if (_stage == Stage.Loading)
                 {
-                    <button class="btn btn-primary btn-block" disabled>Try again in @(_cooldownSeconds)s</button>
+                    <div class="spinner"></div>
+                    <p class="form-hint">Generating your QR code...</p>
                 }
-                else
+                else if (_stage == Stage.Error)
                 {
-                    <button class="btn btn-primary btn-block" @onclick="StartAsync">Try Again</button>
+                    <ErrorBanner Message="@_error" />
+                    <button class="btn btn-ghost btn-block" @onclick="Close">Close</button>
                 }
-            }
-            else if (_stage == Stage.Failed)
-            {
-                <div class="icon-badge icon-badge-danger"><Icon Name="alert" Size="28" /></div>
-                <h3>Payment failed</h3>
-                <p class="form-hint">@(_error ?? "The payment could not be completed.")</p>
-                @if (_cooldownSeconds > 0)
+                else if (_stage == Stage.AwaitingPayment)
                 {
-                    <button class="btn btn-primary btn-block" disabled>Try again in @(_cooldownSeconds)s</button>
+                    <p class="form-hint">Scan with any QR Ph-enabled banking or e-wallet app.</p>
+                    <img class="qr-image" src="@_qrImageUrl" alt="QR Ph payment code" />
+                    <div class="qr-countdown">@FormatRemaining()</div>
+                    <p class="form-hint">Waiting for payment confirmation...</p>
+                    <button class="btn btn-ghost btn-block" @onclick="Close">Cancel</button>
                 }
-                else
+                else if (_stage == Stage.Succeeded)
                 {
-                    <button class="btn btn-primary btn-block" @onclick="StartAsync">Try Again</button>
+                    <div class="icon-badge"><Icon Name="check" Size="28" /></div>
+                    <h3>Payment successful!</h3>
+                    <p class="form-hint">@BookTitle has been added to your library.</p>
+                    <button class="btn btn-primary btn-block" @onclick="Close">Done</button>
+                }
+                else if (_stage == Stage.Expired)
+                {
+                    <div class="icon-badge icon-badge-danger"><Icon Name="clock" Size="28" /></div>
+                    <h3>QR code expired</h3>
+                    <p class="form-hint">This code was only valid for 2 minutes. You can generate a new one.</p>
+                    @if (_cooldownSeconds > 0)
+                    {
+                        <button class="btn btn-primary btn-block" disabled>Try again in @(_cooldownSeconds)s</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary btn-block" @onclick="StartAsync">Try Again</button>
+                    }
+                }
+                else if (_stage == Stage.Failed)
+                {
+                    <div class="icon-badge icon-badge-danger"><Icon Name="alert" Size="28" /></div>
+                    <h3>Payment failed</h3>
+                    <p class="form-hint">@(_error ?? "The payment could not be completed.")</p>
+                    @if (_cooldownSeconds > 0)
+                    {
+                        <button class="btn btn-primary btn-block" disabled>Try again in @(_cooldownSeconds)s</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary btn-block" @onclick="StartAsync">Try Again</button>
+                    }
                 }
             }
         </div>
@@ -66,29 +78,36 @@
 }
 
 @code {
-    private enum Stage { Loading, AwaitingPayment, Succeeded, Failed, Expired, Error }
+    private enum Stage { Details, Loading, AwaitingPayment, Succeeded, Failed, Expired, Error }
 
     [Parameter] public bool IsOpen { get; set; }
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
     [Parameter] public string BookUid { get; set; } = "";
     [Parameter] public string BookTitle { get; set; } = "";
+    [Parameter] public string? BookDescription { get; set; }
+    [Parameter] public string? BookCoverUrl { get; set; }
+    [Parameter] public decimal BookPrice { get; set; }
     [Parameter] public EventCallback OnPurchased { get; set; }
 
-    private Stage _stage = Stage.Loading;
+    private Stage _stage = Stage.Details;
     private string? _qrImageUrl;
     private string? _paymentIntentId;
     private string? _startedForBookUid;
     private DateTime _expiresAtUtc;
     private string? _error;
     private int _cooldownSeconds;
+    private bool _finalVerifyDone;
     private CancellationTokenSource? _cts;
 
-    protected override async Task OnParametersSetAsync()
+    private string ResolvedCover => string.IsNullOrWhiteSpace(BookCoverUrl) ? "imgs/app_logo.png" : BookCoverUrl!;
+
+    protected override void OnParametersSet()
     {
         if (IsOpen && _startedForBookUid != BookUid)
         {
             _startedForBookUid = BookUid;
-            await StartAsync();
+            _stage = Stage.Details;
+            _error = null;
         }
     }
 
@@ -98,6 +117,7 @@
         _cts = new CancellationTokenSource();
         _stage = Stage.Loading;
         _error = null;
+        _finalVerifyDone = false;
         StateHasChanged();
 
         try
@@ -141,11 +161,16 @@
         {
             while (!token.IsCancellationRequested && _stage == Stage.AwaitingPayment)
             {
-                await Task.Delay(TimeSpan.FromSeconds(3), token);
+                await Task.Delay(TimeSpan.FromSeconds(4), token);
+                if (token.IsCancellationRequested) return;
+
+                var remaining = _expiresAtUtc - DateTime.UtcNow;
+                var forceVerify = !_finalVerifyDone && remaining <= TimeSpan.FromSeconds(5);
+                if (forceVerify) _finalVerifyDone = true;
 
                 try
                 {
-                    var status = await PaymentService.GetPaymentStatus(_paymentIntentId!);
+                    var status = await PaymentService.GetPaymentStatus(_paymentIntentId!, forceVerify);
                     ApplyStatus(status);
                 }
                 catch (Exception)
@@ -230,7 +255,7 @@
 
     private async Task CloseIfAllowed()
     {
-        if (_stage == Stage.AwaitingPayment) return;
+        if (_stage is Stage.AwaitingPayment or Stage.Loading) return;
         await Close();
     }
 
@@ -239,6 +264,7 @@
         _cts?.Cancel();
         _paymentIntentId = null;
         _startedForBookUid = null;
+        _stage = Stage.Details;
         IsOpen = false;
         await IsOpenChanged.InvokeAsync(false);
     }

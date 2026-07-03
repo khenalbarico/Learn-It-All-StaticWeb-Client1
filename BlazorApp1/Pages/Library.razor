@@ -4,6 +4,7 @@
 @inject IAppService AppService
 @inject LibraryCacheService LibraryCache
 @inject HttpClient Http
+@inject NavigationManager Nav
 
 <PageTitle>Library - Learn It All</PageTitle>
 
@@ -44,7 +45,8 @@
                     <BookCard Title="@book.Title"
                               CoverImageUrl="@book.CoverImageUrl"
                               Price="@book.Price"
-                              Description="@book.Description"
+                              ShowPrice="@(!IsOwned(book.Uid))"
+                              ActionLabel="@(IsOwned(book.Uid) ? "Owned" : "Buy")"
                               OnActionClick="() => OnBuyClick(book)" />
                 </div>
             }
@@ -54,9 +56,12 @@
 
 <ComingSoonModal @bind-IsOpen="_comingSoonOpen" />
 
-<QrPaymentModal @bind-IsOpen="_paymentModalOpen"
-                BookUid="@_purchasingBookUid"
-                BookTitle="@_purchasingBookTitle" />
+<BuyBookModal @bind-IsOpen="_paymentModalOpen"
+              BookUid="@_purchasingBookUid"
+              BookTitle="@_purchasingBookTitle"
+              BookDescription="@_purchasingBookDescription"
+              BookCoverUrl="@_purchasingBookCoverUrl"
+              BookPrice="@_purchasingBookPrice" />
 
 @code {
     private readonly List<(string Value, string Label)> _categories =
@@ -73,6 +78,9 @@
     private bool _paymentModalOpen;
     private string _purchasingBookUid = "";
     private string _purchasingBookTitle = "";
+    private string? _purchasingBookDescription;
+    private string? _purchasingBookCoverUrl;
+    private decimal _purchasingBookPrice;
     private List<DummyBook>? _dummyCatalog;
 
     protected override void OnInitialized()
@@ -149,10 +157,19 @@
 
     private void OnBuyClick(BookCardData book)
     {
+        if (IsOwned(book.Uid))
+        {
+            Nav.NavigateTo("/my-library");
+            return;
+        }
+
         if (AuthState.IsAuthenticated && !string.IsNullOrEmpty(book.Uid))
         {
             _purchasingBookUid = book.Uid;
             _purchasingBookTitle = book.Title;
+            _purchasingBookDescription = book.Description;
+            _purchasingBookCoverUrl = book.CoverImageUrl;
+            _purchasingBookPrice = book.Price;
             _paymentModalOpen = true;
         }
         else
@@ -160,6 +177,9 @@
             _comingSoonOpen = true;
         }
     }
+
+    private bool IsOwned(string bookUid)
+        => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Library.Any(l => l.Uid == bookUid) == true;
 
     private static BookCardData ToCardData(Book book) => new(book.Uid, book.Title ?? "Untitled", book.ImageCoverUrl, book.Price, book.Description);
 

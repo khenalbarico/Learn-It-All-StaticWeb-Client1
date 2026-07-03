@@ -1,0 +1,183 @@
+@page "/read/{BookUid}/{DocUid}"
+@implements IDisposable
+@inject AuthSessionState AuthState
+@inject IAppService AppService
+@inject LibraryCacheService LibraryCache
+@inject JsInteropService JsInterop
+@inject NavigationManager Nav
+
+<PageTitle>@(_currentDoc?.Title ?? _book?.Title ?? "Reading") - Learn It All</PageTitle>
+
+<div class="reader-page">
+    <AuthGate GuestMessage="Log in to read your books.">
+        <div class="reader-toolbar">
+            <button class="btn btn-ghost reader-back" @onclick="BackToLibrary" title="Back to My Library" aria-label="Back to My Library">
+                <Icon Name="close" Size="18" />
+            </button>
+
+            <div class="reader-titles">
+                <span class="reader-book-title">@(_book?.Title ?? "")</span>
+                <span class="reader-doc-title">@(_currentDoc?.Title ?? "")</span>
+            </div>
+
+            @if (_book is not null && _book.Documents.Count > 1)
+            {
+                <select class="reader-select" value="@DocUid" @onchange="OnDocumentChanged">
+                    @foreach (var doc in _book.Documents)
+                    {
+                        <option value="@doc.Uid">@(string.IsNullOrWhiteSpace(doc.Title) ? "Document" : doc.Title)</option>
+                    }
+                </select>
+            }
+
+            @if (_libraryBooks.Count > 1)
+            {
+                <select class="reader-select" value="@BookUid" @onchange="OnBookChanged">
+                    @foreach (var b in _libraryBooks)
+                    {
+                        <option value="@b.Uid">@(b.Title ?? "Untitled")</option>
+                    }
+                </select>
+            }
+        </div>
+
+        @if (_loading)
+        {
+            <div class="reader-status">
+                <div class="spinner"></div>
+                <p class="form-hint">Loading document...</p>
+            </div>
+        }
+        else if (_error is not null)
+        {
+            <div class="reader-status">
+                <ErrorBanner Message="@_error" OnRetry="LoadDocumentAsync" />
+            </div>
+        }
+        else
+        {
+            <iframe class="reader-frame" src="@_blobUrlWithParams" title="@(_currentDoc?.Title ?? "Book reader")"></iframe>
+        }
+    </AuthGate>
+</div>
+
+@code {
+    [Parameter] public string BookUid { get; set; } = "";
+    [Parameter] public string DocUid { get; set; } = "";
+
+    private Book? _book;
+    private BookDocs? _currentDoc;
+    private List<Book> _libraryBooks = [];
+    private bool _loading = true;
+    private string? _error;
+    private string? _blobUrl;
+    private string? _blobUrlWithParams;
+    private string? _loadedForKey;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!AuthState.IsAuthenticated) return;
+
+        var key = $"{BookUid}/{DocUid}";
+        if (_loadedForKey == key) return;
+        _loadedForKey = key;
+
+        await EnsureLibraryLoadedAsync();
+        await LoadDocumentAsync();
+    }
+
+    private async Task EnsureLibraryLoadedAsync()
+    {
+        if (LibraryCache.TryGetMyLibrary(out var cached))
+        {
+            _libraryBooks = cached;
+        }
+        else
+        {
+            try
+            {
+                _libraryBooks = await AppService.GetMyLibraryBooks();
+                LibraryCache.SetMyLibrary(_libraryBooks);
+            }
+            catch (Exception)
+            {
+                _libraryBooks = [];
+            }
+        }
+
+        _book = _libraryBooks.FirstOrDefault(b => b.Uid == BookUid);
+        _currentDoc = _book?.Documents.FirstOrDefault(d => d.Uid == DocUid);
+    }
+
+    private async Task LoadDocumentAsync()
+    {
+        _loading = true;
+        _error = null;
+        StateHasChanged();
+
+        if (_blobUrl is not null)
+        {
+            await JsInterop.RevokeBlobUrlAsync(_blobUrl);
+            _blobUrl = null;
+            _blobUrlWithParams = null;
+        }
+
+        try
+        {
+            if (!LibraryCache.TryGetDocument(BookUid, DocUid, out var bytes))
+            {
+                bytes = await AppService.GetBookDocumentBytes(BookUid, DocUid);
+                LibraryCache.SetDocument(BookUid, DocUid, bytes);
+            }
+
+            _blobUrl = await JsInterop.CreatePdfBlobUrlAsync(bytes);
+            _blobUrlWithParams = $"{_blobUrl}#toolbar=0&navpanes=0";
+        }
+        catch (ApiUnavailableException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            _error = "You do not have access to this document.";
+        }
+        catch (Exception)
+        {
+            _error = "Could not load this document. Please try again.";
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OnDocumentChanged(ChangeEventArgs e)
+    {
+        var newDocUid = e.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(newDocUid) || newDocUid == DocUid) return;
+        Nav.NavigateTo($"/read/{BookUid}/{newDocUid}");
+    }
+
+    private void OnBookChanged(ChangeEventArgs e)
+    {
+        var newBookUid = e.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(newBookUid) || newBookUid == BookUid) return;
+
+        var target = _libraryBooks.FirstOrDefault(b => b.Uid == newBookUid);
+        var firstDoc = target?.Documents.FirstOrDefault();
+        if (firstDoc is null) return;
+
+        Nav.NavigateTo($"/read/{newBookUid}/{firstDoc.Uid}");
+    }
+
+    private void BackToLibrary() => Nav.NavigateTo("/my-library");
+
+    public void Dispose()
+    {
+        if (_blobUrl is not null)
+        {
+            _ = JsInterop.RevokeBlobUrlAsync(_blobUrl);
+        }
+    }
+}

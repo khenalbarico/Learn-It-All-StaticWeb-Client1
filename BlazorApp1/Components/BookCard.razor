@@ -1,10 +1,9 @@
-<div class="book-card">
+<div class="book-card" @onclick="() => OnActionClick.InvokeAsync()">
     <div class="book-card-cover-wrap">
         <img class="book-card-cover" src="@_resolvedCover" alt="@Title cover" @onerror="OnImageError" />
     </div>
     <div class="book-card-body">
         <div class="book-card-title">@Title</div>
-        <div class="book-card-desc">@Description</div>
         <div class="book-card-footer">
             @if (ShowPrice)
             {
@@ -14,7 +13,7 @@
             {
                 <span class="badge">Owned</span>
             }
-            <button class="btn btn-primary" @onclick="() => OnActionClick.InvokeAsync()">@ActionLabel</button>
+            <button class="btn btn-primary" @onclick="() => OnActionClick.InvokeAsync()" @onclick:stopPropagation="true">@ActionLabel</button>
         </div>
     </div>
 </div>
@@ -23,7 +22,6 @@
     [Parameter] public string Title { get; set; } = "";
     [Parameter] public string? CoverImageUrl { get; set; }
     [Parameter] public decimal Price { get; set; }
-    [Parameter] public string? Description { get; set; }
     [Parameter] public bool ShowPrice { get; set; } = true;
     [Parameter] public string ActionLabel { get; set; } = "Buy";
     [Parameter] public EventCallback OnActionClick { get; set; }
