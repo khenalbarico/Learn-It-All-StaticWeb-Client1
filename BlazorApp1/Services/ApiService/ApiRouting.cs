@@ -13,5 +13,7 @@ public class ApiRouting
         [ApiFunctions.RecordPurchase]     = "RecordPurchase",
         [ApiFunctions.GetBookUrl]         = "GetBookUrl",
         [ApiFunctions.GetMyLibraryBooks]  = "GetMyLibraryBooks",
+        [ApiFunctions.CreatePaymentIntent] = "CreatePaymentIntent",
+        [ApiFunctions.GetPaymentStatus]     = "GetPaymentStatus",
     };
 }

@@ -8,5 +8,7 @@ public enum ApiFunctions
     GetBooksByCategory,
     GetMyLibraryBooks,
     GetBookUrl,
-    RecordPurchase
+    RecordPurchase,
+    CreatePaymentIntent,
+    GetPaymentStatus
 }

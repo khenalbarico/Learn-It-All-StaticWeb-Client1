@@ -34,6 +34,7 @@ public static class ServiceRegistry
             sp.GetRequiredService<IAppAuthentication>()));
 
         services.AddSingleton<IAppService, AppService>();
+        services.AddSingleton<IPaymentService, PaymentService>();
         services.AddSingleton<LibraryCacheService>();
         services.AddSingleton<ThemeService>();
         services.AddSingleton<AuthSessionState>();

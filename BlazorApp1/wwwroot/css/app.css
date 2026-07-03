@@ -555,6 +555,30 @@ button, input, select, textarea {
     animation: scaleIn var(--duration-base) var(--ease-spring) both;
 }
 
+.qr-modal {
+    max-width: 340px;
+}
+
+.qr-image {
+    width: 220px;
+    height: 220px;
+    object-fit: contain;
+    margin: 1rem auto;
+    border-radius: var(--radius-md);
+    background-color: #fff;
+    padding: 0.6rem;
+    display: block;
+    animation: scaleIn var(--duration-base) var(--ease-spring) both;
+}
+
+.qr-countdown {
+    font-weight: 800;
+    font-size: 1.4rem;
+    color: var(--color-secondary);
+    margin-bottom: 0.5rem;
+    font-variant-numeric: tabular-nums;
+}
+
 .error-banner {
     display: flex;
     align-items: center;

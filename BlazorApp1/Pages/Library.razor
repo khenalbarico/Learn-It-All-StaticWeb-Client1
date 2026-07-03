@@ -45,7 +45,7 @@
                               CoverImageUrl="@book.CoverImageUrl"
                               Price="@book.Price"
                               Description="@book.Description"
-                              OnActionClick="OpenComingSoon" />
+                              OnActionClick="() => OnBuyClick(book)" />
                 </div>
             }
         </div>
@@ -53,6 +53,10 @@
 </div>
 
 <ComingSoonModal @bind-IsOpen="_comingSoonOpen" />
+
+<QrPaymentModal @bind-IsOpen="_paymentModalOpen"
+                BookUid="@_purchasingBookUid"
+                BookTitle="@_purchasingBookTitle" />
 
 @code {
     private readonly List<(string Value, string Label)> _categories =
@@ -66,6 +70,9 @@
     private bool _loading;
     private string? _error;
     private bool _comingSoonOpen;
+    private bool _paymentModalOpen;
+    private string _purchasingBookUid = "";
+    private string _purchasingBookTitle = "";
     private List<DummyBook>? _dummyCatalog;
 
     protected override void OnInitialized()
@@ -140,13 +147,25 @@
         }
     }
 
-    private void OpenComingSoon() => _comingSoonOpen = true;
+    private void OnBuyClick(BookCardData book)
+    {
+        if (AuthState.IsAuthenticated && !string.IsNullOrEmpty(book.Uid))
+        {
+            _purchasingBookUid = book.Uid;
+            _purchasingBookTitle = book.Title;
+            _paymentModalOpen = true;
+        }
+        else
+        {
+            _comingSoonOpen = true;
+        }
+    }
 
-    private static BookCardData ToCardData(Book book) => new(book.Title ?? "Untitled", book.ImageCoverUrl, book.Price, book.Description);
+    private static BookCardData ToCardData(Book book) => new(book.Uid, book.Title ?? "Untitled", book.ImageCoverUrl, book.Price, book.Description);
 
-    private static BookCardData ToCardData(DummyBook book) => new(book.Title, book.CoverImage, book.Price, book.Description);
+    private static BookCardData ToCardData(DummyBook book) => new("", book.Title, book.CoverImage, book.Price, book.Description);
 
-    private record BookCardData(string Title, string? CoverImageUrl, decimal Price, string? Description);
+    private record BookCardData(string Uid, string Title, string? CoverImageUrl, decimal Price, string? Description);
 
     public void Dispose()
     {
