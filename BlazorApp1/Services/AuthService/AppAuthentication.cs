@@ -115,9 +115,18 @@ public class AppAuthentication(IFirebaseCfg _cfg, TokenCache _cache) : IAppAuthe
 
     public void SignOut()
     {
-        _client.SignOut();
-        _credential = null;
-        _cache.Clear();
+        try
+        {
+            _client.SignOut();
+        }
+        catch (Exception)
+        {
+        }
+        finally
+        {
+            _credential = null;
+            _cache.Clear();
+        }
     }
 
     private async Task SendVerificationEmailInternalAsync()

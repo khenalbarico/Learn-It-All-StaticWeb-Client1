@@ -8,7 +8,7 @@ namespace BlazorApp1.Services;
 
 public static class ServiceRegistry
 {
-    private const string ApiEnvironment = "production";
+    private const string ApiEnvironment = "development";
 
     public static IServiceCollection AddLearnItAllServices(this IServiceCollection services)
     {
@@ -22,10 +22,10 @@ public static class ServiceRegistry
         services.AddHttpClient("LearnItAllApi", (sp, client) =>
         {
             var apiUrlGetter = sp.GetRequiredService<IApiUrlGetter>();
-            var apiUrl = apiUrlGetter.GetApiUrl(ApiEnvironment);
+            var apiUrl       = apiUrlGetter.GetApiUrl(ApiEnvironment);
 
             client.BaseAddress = new Uri(apiUrl);
-            client.Timeout = TimeSpan.FromSeconds(20);
+            client.Timeout     = TimeSpan.FromSeconds(20);
             client.DefaultRequestHeaders.Add("Accept", "application/json");
         });
         services.AddSingleton<IApiClient>(sp => new ApiClient(

@@ -18,7 +18,7 @@ public class ApiClient(HttpClient _http, TokenCache _cache, IAppAuthentication _
 
     private async Task<HttpRequestMessage> BuildRequestAsync(ApiFunctions apiFunction, object? payload = null)
     {
-        var result = await ResolveAuthAsync();
+        var result  = await ResolveAuthAsync();
         var request = new HttpRequestMessage(HttpMethod.Post, ApiRouting.Routes[apiFunction]);
 
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", result.Token);
