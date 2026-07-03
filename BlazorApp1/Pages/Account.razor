@@ -1,0 +1,215 @@
+@page "/account"
+@implements IDisposable
+@inject AuthSessionState AuthState
+@inject IAppService AppService
+@inject IAppAuthentication Auth
+
+<PageTitle>Account - Learn It All</PageTitle>
+
+<div class="page-container">
+    <h1>Account</h1>
+
+    <AuthGate GuestMessage="Log in to manage your account.">
+        @if (AuthState.CurrentUser is null && AuthState.ProfileLoadError is not null)
+        {
+            <ErrorBanner Message="@AuthState.ProfileLoadError" OnRetry="() => AuthState.RefreshProfileAsync()" />
+        }
+        else if (AuthState.CurrentUser is null)
+        {
+            <div class="spinner"></div>
+        }
+        else
+        {
+            <div class="card">
+                <h2>Profile</h2>
+
+                <div class="form-field">
+                    <label>Email</label>
+                    <input value="@AuthState.CurrentUser.Email" disabled />
+                </div>
+
+                <EditForm Model="_profileModel" OnValidSubmit="SaveProfile">
+                    <DataAnnotationsValidator />
+
+                    <div class="form-field">
+                        <label for="acc-first">First name</label>
+                        <InputText id="acc-first" @bind-Value="_profileModel.FirstName" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="acc-last">Last name</label>
+                        <InputText id="acc-last" @bind-Value="_profileModel.LastName" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="acc-phone">Phone number</label>
+                        <InputText id="acc-phone" @bind-Value="_profileModel.PhoneNumber" />
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(_profileMessage))
+                    {
+                        <p class="@(_profileSuccess ? "form-hint" : "form-error")">@_profileMessage</p>
+                    }
+
+                    <button type="submit" class="btn btn-primary" disabled="@_profileBusy">
+                        @(_profileBusy ? "Saving..." : "Save Changes")
+                    </button>
+                </EditForm>
+            </div>
+
+            <details class="card password-section">
+                <summary>Change Password</summary>
+
+                <EditForm Model="_passwordModel" OnValidSubmit="ChangePassword">
+                    <DataAnnotationsValidator />
+
+                    <div class="form-field">
+                        <label for="acc-newpass">New password</label>
+                        <InputText id="acc-newpass" type="password" @bind-Value="_passwordModel.NewPassword" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="acc-confirmpass">Confirm new password</label>
+                        <InputText id="acc-confirmpass" type="password" @bind-Value="_passwordModel.ConfirmPassword" />
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(_passwordMessage))
+                    {
+                        <p class="@(_passwordSuccess ? "form-hint" : "form-error")">@_passwordMessage</p>
+                    }
+
+                    <button type="submit" class="btn btn-secondary" disabled="@_passwordBusy">
+                        @(_passwordBusy ? "Updating..." : "Update Password")
+                    </button>
+                </EditForm>
+            </details>
+        }
+    </AuthGate>
+</div>
+
+@code {
+    private readonly ProfileModel _profileModel = new();
+    private readonly PasswordModel _passwordModel = new();
+
+    private bool _profileBusy;
+    private string? _profileMessage;
+    private bool _profileSuccess;
+
+    private bool _passwordBusy;
+    private string? _passwordMessage;
+    private bool _passwordSuccess;
+
+    private bool _synced;
+
+    protected override void OnInitialized()
+    {
+        AuthState.OnChange += OnAuthChanged;
+        SyncModelFromUser();
+    }
+
+    private void OnAuthChanged()
+    {
+        SyncModelFromUser();
+        StateHasChanged();
+    }
+
+    private void SyncModelFromUser()
+    {
+        if (_synced || AuthState.CurrentUser is null) return;
+
+        _profileModel.FirstName = AuthState.CurrentUser.FirstName ?? "";
+        _profileModel.LastName = AuthState.CurrentUser.LastName ?? "";
+        _profileModel.PhoneNumber = AuthState.CurrentUser.PhoneNumber ?? "";
+        _synced = true;
+    }
+
+    private async Task SaveProfile()
+    {
+        _profileMessage = null;
+        _profileBusy = true;
+
+        try
+        {
+            await AppService.CreateUser(_profileModel.FirstName, _profileModel.LastName, _profileModel.PhoneNumber);
+            await AuthState.RefreshProfileAsync();
+            _profileMessage = "Profile updated.";
+            _profileSuccess = true;
+        }
+        catch (ApiUnavailableException ex)
+        {
+            _profileMessage = ex.Message;
+            _profileSuccess = false;
+        }
+        catch (Exception)
+        {
+            _profileMessage = "Could not save your changes. Please try again.";
+            _profileSuccess = false;
+        }
+        finally
+        {
+            _profileBusy = false;
+        }
+    }
+
+    private async Task ChangePassword()
+    {
+        _passwordMessage = null;
+
+        if (_passwordModel.NewPassword != _passwordModel.ConfirmPassword)
+        {
+            _passwordMessage = "Passwords do not match.";
+            _passwordSuccess = false;
+            return;
+        }
+
+        _passwordBusy = true;
+        try
+        {
+            await Auth.ChangePasswordAsync(_passwordModel.NewPassword);
+            _passwordMessage = "Password updated.";
+            _passwordSuccess = true;
+            _passwordModel.NewPassword = "";
+            _passwordModel.ConfirmPassword = "";
+        }
+        catch (ApiUnavailableException ex)
+        {
+            _passwordMessage = ex.Message;
+            _passwordSuccess = false;
+        }
+        catch (Exception)
+        {
+            _passwordMessage = "Could not update your password. Please try again.";
+            _passwordSuccess = false;
+        }
+        finally
+        {
+            _passwordBusy = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        AuthState.OnChange -= OnAuthChanged;
+    }
+
+    private class ProfileModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string FirstName { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string LastName { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.Phone]
+        public string PhoneNumber { get; set; } = "";
+    }
+
+    private class PasswordModel
+    {
+        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.MinLength(6)]
+        public string NewPassword { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

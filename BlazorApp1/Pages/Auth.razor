@@ -1,0 +1,38 @@
+@page "/auth"
+@inject AuthSessionState AuthState
+@inject NavigationManager Nav
+
+<PageTitle>Sign In - Learn It All</PageTitle>
+
+<div class="form-container">
+    @switch (_view)
+    {
+        case AuthView.Login:
+            <LoginForm OnRegisterClick="() => _view = AuthView.Register" />
+            break;
+        case AuthView.Register:
+            <RegisterForm OnLoginClick="() => _view = AuthView.Login"
+                          OnRegistered="OnRegistered" />
+            break;
+        case AuthView.CollectProfile:
+            <ProfileCollectionForm OnProfileSaved="() => _view = AuthView.VerifyEmail" />
+            break;
+        case AuthView.VerifyEmail:
+            <VerifyEmailNotice />
+            break;
+    }
+</div>
+
+@code {
+    private enum AuthView { Login, Register, CollectProfile, VerifyEmail }
+
+    private AuthView _view = AuthView.Login;
+
+    protected override void OnInitialized()
+    {
+        if (AuthState.IsAuthenticated)
+            Nav.NavigateTo("/");
+    }
+
+    private void OnRegistered() => _view = AuthView.CollectProfile;
+}

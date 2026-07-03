@@ -1,0 +1,147 @@
+@page "/library"
+@implements IDisposable
+@inject AuthSessionState AuthState
+@inject IAppService AppService
+@inject LibraryCacheService LibraryCache
+@inject HttpClient Http
+
+<PageTitle>Library - Learn It All</PageTitle>
+
+<div class="page-container">
+    <h1>Library</h1>
+
+    @if (!AuthState.IsAuthenticated && !AuthState.IsInitializing)
+    {
+        <p class="banner">You're browsing as a guest. Sample books are shown below &mdash; authenticate to see the real catalog.</p>
+    }
+
+    <CategoryTabs Categories="_categories" SelectedCategory="_selectedCategory" SelectedCategoryChanged="OnCategoryChanged" />
+
+    @if (AuthState.IsInitializing || _loading)
+    {
+        <div class="spinner"></div>
+    }
+    else if (_error is not null)
+    {
+        <ErrorBanner Message="@_error" OnRetry="() => LoadCategoryAsync(_selectedCategory)" />
+    }
+    else if (_books.Count == 0)
+    {
+        <EmptyState Message="No books in this category yet." />
+    }
+    else
+    {
+        <div class="book-grid">
+            @foreach (var book in _books)
+            {
+                <BookCard Title="@book.Title"
+                          CoverImageUrl="@book.CoverImageUrl"
+                          Price="@book.Price"
+                          Description="@book.Description"
+                          OnActionClick="OpenComingSoon" />
+            }
+        </div>
+    }
+</div>
+
+<ComingSoonModal @bind-IsOpen="_comingSoonOpen" />
+
+@code {
+    private readonly List<(string Value, string Label)> _categories =
+    [
+        ("CollegeCourse", "College Course"),
+        ("Reviewer", "Reviewer")
+    ];
+
+    private string _selectedCategory = "CollegeCourse";
+    private List<BookCardData> _books = [];
+    private bool _loading;
+    private string? _error;
+    private bool _comingSoonOpen;
+    private List<DummyBook>? _dummyCatalog;
+
+    protected override void OnInitialized()
+    {
+        AuthState.OnChange += OnAuthChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await LoadCategoryAsync(_selectedCategory);
+    }
+
+    private async void OnAuthChanged()
+    {
+        await LoadCategoryAsync(_selectedCategory);
+        StateHasChanged();
+    }
+
+    private async Task OnCategoryChanged(string category)
+    {
+        _selectedCategory = category;
+        await LoadCategoryAsync(category);
+    }
+
+    private async Task LoadCategoryAsync(string category)
+    {
+        if (AuthState.IsInitializing) return;
+
+        _loading = true;
+        _error = null;
+        StateHasChanged();
+
+        try
+        {
+            if (AuthState.IsAuthenticated)
+            {
+                if (LibraryCache.TryGetCategory(category, out var cached))
+                {
+                    _books = cached.Select(ToCardData).ToList();
+                }
+                else
+                {
+                    var fetched = await AppService.GetBooksByCategory(category);
+                    LibraryCache.SetCategory(category, fetched);
+                    _books = fetched.Select(ToCardData).ToList();
+                }
+            }
+            else
+            {
+                _dummyCatalog ??= await Http.GetFromJsonAsync<List<DummyBook>>("data/dummy-books.json") ?? [];
+                _books = _dummyCatalog
+                    .Where(b => string.Equals(b.Category, category, StringComparison.OrdinalIgnoreCase))
+                    .Select(ToCardData)
+                    .ToList();
+            }
+        }
+        catch (ApiUnavailableException ex)
+        {
+            _error = ex.Message;
+            _books = [];
+        }
+        catch (Exception)
+        {
+            _error = "Could not load books for this category. Please try again.";
+            _books = [];
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OpenComingSoon() => _comingSoonOpen = true;
+
+    private static BookCardData ToCardData(Book book) => new(book.Title ?? "Untitled", book.ImageCoverUrl, book.Price, book.Description);
+
+    private static BookCardData ToCardData(DummyBook book) => new(book.Title, book.CoverImage, book.Price, book.Description);
+
+    private record BookCardData(string Title, string? CoverImageUrl, decimal Price, string? Description);
+
+    public void Dispose()
+    {
+        AuthState.OnChange -= OnAuthChanged;
+    }
+}

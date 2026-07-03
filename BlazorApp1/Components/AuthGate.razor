@@ -1,0 +1,27 @@
+@inject AuthSessionState AuthState
+
+@if (AuthState.IsInitializing)
+{
+    <div class="spinner"></div>
+}
+else if (!AuthState.IsAuthenticated)
+{
+    @if (GuestContent is not null)
+    {
+        @GuestContent
+    }
+    else
+    {
+        <GuestNotice Message="@GuestMessage" />
+    }
+}
+else
+{
+    @ChildContent
+}
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? GuestContent { get; set; }
+    [Parameter] public string GuestMessage { get; set; } = "Sign in or create a free account to continue.";
+}

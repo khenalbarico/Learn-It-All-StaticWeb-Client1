@@ -1,0 +1,30 @@
+[
+  {
+    "Title": "Intro to Data Structures",
+    "CoverImage": "imgs/cover_imgs/Intro to Data Structures.png",
+    "Price": 12.99,
+    "Description": "A friendly walkthrough of core data structures for first-year CS students.",
+    "Category": "CollegeCourse"
+  },
+  {
+    "Title": "College Algebra Essentials",
+    "CoverImage": "imgs/cover_imgs/College Algebra Essentials.png",
+    "Price": 10.5,
+    "Description": "Clear explanations and worked examples covering the full college algebra syllabus.",
+    "Category": "CollegeCourse"
+  },
+  {
+    "Title": "Board Exam Reviewer 2025",
+    "CoverImage": "imgs/cover_imgs/Board Exam Reviewer 2025.png",
+    "Price": 9.99,
+    "Description": "Concise, high-yield review material for the upcoming board exam.",
+    "Category": "Reviewer"
+  },
+  {
+    "Title": "Nursing Licensure Quick Review",
+    "CoverImage": "imgs/cover_imgs/Nursing Licensure Quick Review.png",
+    "Price": 14.0,
+    "Description": "A focused refresher covering the topics most tested on the nursing licensure exam.",
+    "Category": "Reviewer"
+  }
+]

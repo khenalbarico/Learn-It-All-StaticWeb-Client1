@@ -1,7 +1,27 @@
-﻿@page "/"
+@page "/"
+@implements IDisposable
+@inject AuthSessionState AuthState
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Learn It All</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="page-container">
+    <AuthGate GuestMessage="Authenticate to access this view.">
+        <div class="centered-notice">
+            <img src="imgs/app_logo.png" alt="Learn It All logo" />
+            <h1>Welcome@(string.IsNullOrWhiteSpace(AuthState.CurrentUser?.FirstName) ? "" : $", {AuthState.CurrentUser!.FirstName}")!</h1>
+            <p class="form-hint">More is coming to this page soon.</p>
+        </div>
+    </AuthGate>
+</div>
 
-Welcome to your new app.
+@code {
+    protected override void OnInitialized()
+    {
+        AuthState.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        AuthState.OnChange -= StateHasChanged;
+    }
+}

@@ -1,0 +1,74 @@
+@inject IAppAuthentication Auth
+@inject AuthSessionState AuthState
+@inject NavigationManager Nav
+
+<div class="centered-notice card">
+    <h2>Check your email</h2>
+    <p class="form-hint">
+        We've sent a verification link to your email address. Click the link, then come back and continue.
+    </p>
+
+    @if (!string.IsNullOrEmpty(_message))
+    {
+        <p class="form-error">@_message</p>
+    }
+
+    <button class="btn btn-primary btn-block" @onclick="ContinueClicked" disabled="@_busy">
+        @(_busy ? "Checking..." : "I've verified, continue")
+    </button>
+    <button class="btn btn-ghost btn-block" @onclick="Resend" disabled="@_busy">Resend email</button>
+</div>
+
+@code {
+    private string? _message;
+    private bool _busy;
+
+    private async Task ContinueClicked()
+    {
+        _message = null;
+        _busy = true;
+        try
+        {
+            await AuthState.CompleteVerificationAsync();
+            Nav.NavigateTo("/");
+        }
+        catch (EmailNotVerifiedException)
+        {
+            _message = "Still not verified yet. Please click the link in your email first.";
+        }
+        catch (ApiUnavailableException ex)
+        {
+            _message = ex.Message;
+        }
+        catch (Exception)
+        {
+            _message = "Something went wrong. Please try again.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task Resend()
+    {
+        _busy = true;
+        try
+        {
+            await Auth.SendEmailVerificationAsync();
+            _message = "Verification email sent again.";
+        }
+        catch (ApiUnavailableException ex)
+        {
+            _message = ex.Message;
+        }
+        catch (Exception)
+        {
+            _message = "Could not resend the email right now.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

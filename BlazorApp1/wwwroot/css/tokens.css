@@ -1,0 +1,68 @@
+:root {
+    --color-primary: #EF7B22;
+    --color-primary-strong: #D96A15;
+    --color-primary-contrast: #FFFFFF;
+    --color-secondary: #1C4F86;
+    --color-secondary-hover: #163F6C;
+    --color-accent: #5AA9E6;
+    --color-bg: #FBF6EF;
+    --color-surface: #FFFFFF;
+    --color-surface-alt: #F3E9DC;
+    --color-text: #2B2320;
+    --color-text-muted: #6B5F55;
+    --color-border: #E7DCCC;
+    --color-success: #2F9E44;
+    --color-danger: #D64545;
+    --color-warning: #E0A106;
+    --color-focus-ring: #5AA9E6;
+
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --shadow-sm: 0 1px 3px rgba(43, 35, 32, 0.08);
+    --shadow-md: 0 4px 16px rgba(43, 35, 32, 0.10);
+    --font-heading: "Georgia", "Times New Roman", serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+:root[data-theme="dark"] {
+    --color-primary: #F5923D;
+    --color-primary-strong: #FFA855;
+    --color-primary-contrast: #241A12;
+    --color-secondary: #5AA9E6;
+    --color-secondary-hover: #7FBEEF;
+    --color-accent: #1C4F86;
+    --color-bg: #211B16;
+    --color-surface: #2C241D;
+    --color-surface-alt: #362C22;
+    --color-text: #F3E9DC;
+    --color-text-muted: #B9AA98;
+    --color-border: #4A3D30;
+    --color-success: #4CC26B;
+    --color-danger: #F17070;
+    --color-warning: #F0C24B;
+    --color-focus-ring: #5AA9E6;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.28);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]):not([data-theme="dark"]) {
+        --color-primary: #F5923D;
+        --color-primary-strong: #FFA855;
+        --color-primary-contrast: #241A12;
+        --color-secondary: #5AA9E6;
+        --color-secondary-hover: #7FBEEF;
+        --color-accent: #1C4F86;
+        --color-bg: #211B16;
+        --color-surface: #2C241D;
+        --color-surface-alt: #362C22;
+        --color-text: #F3E9DC;
+        --color-text-muted: #B9AA98;
+        --color-border: #4A3D30;
+        --color-success: #4CC26B;
+        --color-danger: #F17070;
+        --color-warning: #F0C24B;
+        --color-focus-ring: #5AA9E6;
+    }
+}

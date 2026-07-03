@@ -1,0 +1,150 @@
+@page "/my-library"
+@inject AuthSessionState AuthState
+@inject IAppService AppService
+@inject LibraryCacheService LibraryCache
+@inject JsInteropService JsInterop
+@inject HttpClient Http
+
+<PageTitle>My Library - Learn It All</PageTitle>
+
+<div class="page-container">
+    <h1>My Library</h1>
+
+    <AuthGate GuestMessage="Log in to see the books you've purchased.">
+        <GuestContent>
+            <p class="banner">Log in to see your real library &mdash; here's a preview of what's available.</p>
+
+            @if (_dummyCatalog is null)
+            {
+                <div class="spinner"></div>
+            }
+            else
+            {
+                <div class="book-grid">
+                    @foreach (var book in _dummyCatalog)
+                    {
+                        <BookCard Title="@book.Title"
+                                  CoverImageUrl="@book.CoverImage"
+                                  Price="@book.Price"
+                                  Description="@book.Description"
+                                  OnActionClick="OpenComingSoon" />
+                    }
+                </div>
+            }
+        </GuestContent>
+        <ChildContent>
+            @if (_readError is not null)
+            {
+                <ErrorBanner Message="@_readError" OnRetry="() => { _readError = null; }" />
+            }
+
+            @if (_loading)
+            {
+                <div class="spinner"></div>
+            }
+            else if (_error is not null)
+            {
+                <ErrorBanner Message="@_error" OnRetry="LoadMyLibraryAsync" />
+            }
+            else if (_books.Count == 0)
+            {
+                <EmptyState Message="You haven't bought any books yet. Head to the Library to find something to read." />
+            }
+            else
+            {
+                <div class="book-grid">
+                    @foreach (var book in _books)
+                    {
+                        <BookCard Title="@(book.Title ?? "Untitled")"
+                                  CoverImageUrl="@book.ImageCoverUrl"
+                                  Description="@book.Description"
+                                  ShowPrice="false"
+                                  ActionLabel="Read"
+                                  OnActionClick="() => ReadBook(book)" />
+                    }
+                </div>
+            }
+        </ChildContent>
+    </AuthGate>
+</div>
+
+<ComingSoonModal @bind-IsOpen="_comingSoonOpen" />
+
+@code {
+    private List<Book> _books = [];
+    private bool _loading = true;
+    private string? _error;
+    private string? _readError;
+    private bool _comingSoonOpen;
+    private List<DummyBook>? _dummyCatalog;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            _dummyCatalog = await Http.GetFromJsonAsync<List<DummyBook>>("data/dummy-books.json") ?? [];
+            _loading = false;
+            return;
+        }
+
+        await LoadMyLibraryAsync();
+    }
+
+    private async Task LoadMyLibraryAsync()
+    {
+        _error = null;
+
+        if (LibraryCache.TryGetMyLibrary(out var cached))
+        {
+            _books = cached;
+            _loading = false;
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            _books = await AppService.GetMyLibraryBooks();
+            LibraryCache.SetMyLibrary(_books);
+        }
+        catch (ApiUnavailableException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception)
+        {
+            _error = "Could not load your library. Please try again.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ReadBook(Book book)
+    {
+        _readError = null;
+        var doc = book.Documents.FirstOrDefault();
+        if (doc is null)
+        {
+            _readError = "This book doesn't have a readable document yet.";
+            return;
+        }
+
+        try
+        {
+            var url = await AppService.GetBookUrl(book.Uid, doc.Uid);
+            await JsInterop.OpenInNewTabAsync(url);
+        }
+        catch (ApiUnavailableException ex)
+        {
+            _readError = ex.Message;
+        }
+        catch (Exception)
+        {
+            _readError = "Could not open this book right now. Please try again.";
+        }
+    }
+
+    private void OpenComingSoon() => _comingSoonOpen = true;
+}

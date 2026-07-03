@@ -1,0 +1,22 @@
+{
+  "name": "Learn It All",
+  "short_name": "Learn It All",
+  "id": "./",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#FBF6EF",
+  "theme_color": "#D96A15",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ]
+}

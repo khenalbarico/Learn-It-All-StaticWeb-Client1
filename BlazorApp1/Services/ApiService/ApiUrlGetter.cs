@@ -1,0 +1,16 @@
+namespace BlazorApp1.Services.ApiService;
+
+public class ApiUrlGetter : IApiUrlGetter
+{
+    public string GetApiUrl(string env)
+    {
+        env = env.Trim().ToLowerInvariant();
+
+        return env switch
+        {
+            "development" => "http://localhost:7041/api/",
+            "production"  => "https://learn-it-all-api-dev1.azurewebsites.net/api/",
+            _             => throw new ArgumentException($"Unknown environment: {env}")
+        };
+    }
+}

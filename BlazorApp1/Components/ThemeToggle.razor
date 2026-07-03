@@ -1,0 +1,23 @@
+@implements IDisposable
+@inject ThemeService ThemeService
+
+<button class="btn btn-ghost theme-toggle" @onclick="Toggle" title="Toggle dark / light mode" aria-label="Toggle dark or light mode">
+    <Icon Name="@(ThemeService.CurrentTheme == AppTheme.Dark ? "sun" : "moon")" />
+</button>
+
+@code {
+    protected override void OnInitialized()
+    {
+        ThemeService.OnChange += StateHasChanged;
+    }
+
+    private async Task Toggle()
+    {
+        await ThemeService.ToggleAsync();
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnChange -= StateHasChanged;
+    }
+}

@@ -1,0 +1,76 @@
+@inject IAppService AppService
+
+<h1>Tell us about you</h1>
+<p class="form-hint">A few details to finish setting up your account.</p>
+
+<EditForm Model="_model" OnValidSubmit="Submit" class="auth-form">
+    <DataAnnotationsValidator />
+
+    <div class="form-field">
+        <label for="prof-first">First name</label>
+        <InputText id="prof-first" @bind-Value="_model.FirstName" />
+    </div>
+
+    <div class="form-field">
+        <label for="prof-last">Last name</label>
+        <InputText id="prof-last" @bind-Value="_model.LastName" />
+    </div>
+
+    <div class="form-field">
+        <label for="prof-phone">Phone number</label>
+        <InputText id="prof-phone" @bind-Value="_model.PhoneNumber" />
+    </div>
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <p class="form-error">@_error</p>
+    }
+
+    <button type="submit" class="btn btn-primary btn-block" disabled="@_busy">
+        @(_busy ? "Saving..." : "Continue")
+    </button>
+</EditForm>
+
+@code {
+    [Parameter] public EventCallback OnProfileSaved { get; set; }
+
+    private readonly ProfileModel _model = new();
+    private string? _error;
+    private bool _busy;
+
+    private async Task Submit()
+    {
+        _error = null;
+        _busy = true;
+
+        try
+        {
+            await AppService.CreateUser(_model.FirstName, _model.LastName, _model.PhoneNumber);
+            await OnProfileSaved.InvokeAsync();
+        }
+        catch (ApiUnavailableException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception)
+        {
+            _error = "Could not save your profile. Please try again.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private class ProfileModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string FirstName { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string LastName { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.Phone]
+        public string PhoneNumber { get; set; } = "";
+    }
+}

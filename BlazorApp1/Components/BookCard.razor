@@ -1,0 +1,43 @@
+<div class="book-card">
+    <img class="book-card-cover" src="@_resolvedCover" alt="@Title cover" @onerror="OnImageError" />
+    <div class="book-card-body">
+        <div class="book-card-title">@Title</div>
+        <div class="book-card-desc">@Description</div>
+        <div class="book-card-footer">
+            @if (ShowPrice)
+            {
+                <span class="book-card-price">@Price.ToString("C")</span>
+            }
+            else
+            {
+                <span class="badge">Owned</span>
+            }
+            <button class="btn btn-primary" @onclick="() => OnActionClick.InvokeAsync()">@ActionLabel</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string? CoverImageUrl { get; set; }
+    [Parameter] public decimal Price { get; set; }
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public bool ShowPrice { get; set; } = true;
+    [Parameter] public string ActionLabel { get; set; } = "Buy";
+    [Parameter] public EventCallback OnActionClick { get; set; }
+
+    private string _resolvedCover = "imgs/app_logo.png";
+    private bool _fallbackApplied;
+
+    protected override void OnParametersSet()
+    {
+        if (!_fallbackApplied)
+            _resolvedCover = string.IsNullOrWhiteSpace(CoverImageUrl) ? "imgs/app_logo.png" : CoverImageUrl!;
+    }
+
+    private void OnImageError()
+    {
+        _fallbackApplied = true;
+        _resolvedCover = "imgs/app_logo.png";
+    }
+}
