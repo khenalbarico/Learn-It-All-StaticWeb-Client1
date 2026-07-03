@@ -1,3 +1,4 @@
+@using System.ComponentModel.DataAnnotations
 @inject IAppService AppService
 
 <h1>Tell us about you</h1>
@@ -8,17 +9,20 @@
 
     <div class="form-field">
         <label for="prof-first">First name</label>
-        <InputText id="prof-first" @bind-Value="_model.FirstName" />
+        <InputText id="prof-first" autocomplete="given-name" @bind-Value="_model.FirstName" />
+        <ValidationMessage For="() => _model.FirstName" />
     </div>
 
     <div class="form-field">
         <label for="prof-last">Last name</label>
-        <InputText id="prof-last" @bind-Value="_model.LastName" />
+        <InputText id="prof-last" autocomplete="family-name" @bind-Value="_model.LastName" />
+        <ValidationMessage For="() => _model.LastName" />
     </div>
 
     <div class="form-field">
         <label for="prof-phone">Phone number</label>
-        <InputText id="prof-phone" @bind-Value="_model.PhoneNumber" />
+        <InputText id="prof-phone" autocomplete="tel" @bind-Value="_model.PhoneNumber" />
+        <ValidationMessage For="() => _model.PhoneNumber" />
     </div>
 
     @if (!string.IsNullOrEmpty(_error))
@@ -45,7 +49,7 @@
 
         try
         {
-            await AppService.CreateUser(_model.FirstName, _model.LastName, _model.PhoneNumber);
+            await AppService.CreateUser(_model.FirstName.Trim(), _model.LastName.Trim(), _model.PhoneNumber.Trim());
             await OnProfileSaved.InvokeAsync();
         }
         catch (ApiUnavailableException ex)
@@ -64,13 +68,14 @@
 
     private class ProfileModel
     {
-        [System.ComponentModel.DataAnnotations.Required]
+        [Required(ErrorMessage = "Please enter your first name.")]
         public string FirstName { get; set; } = "";
 
-        [System.ComponentModel.DataAnnotations.Required]
+        [Required(ErrorMessage = "Please enter your last name.")]
         public string LastName { get; set; } = "";
 
-        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.Phone]
+        [Required(ErrorMessage = "Please enter your phone number.")]
+        [Phone(ErrorMessage = "Please enter a valid phone number.")]
         public string PhoneNumber { get; set; } = "";
     }
 }

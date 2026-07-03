@@ -1,3 +1,4 @@
+@using System.ComponentModel.DataAnnotations
 @inject AuthSessionState AuthState
 @inject IAppAuthentication Auth
 @inject NavigationManager Nav
@@ -10,12 +11,14 @@
 
     <div class="form-field">
         <label for="login-email">Email</label>
-        <InputText id="login-email" type="email" @bind-Value="_model.Email" />
+        <InputText id="login-email" type="email" autocomplete="email" @bind-Value="_model.Email" />
+        <ValidationMessage For="() => _model.Email" />
     </div>
 
     <div class="form-field">
         <label for="login-password">Password</label>
-        <InputText id="login-password" type="password" @bind-Value="_model.Password" />
+        <InputText id="login-password" type="password" autocomplete="current-password" @bind-Value="_model.Password" />
+        <ValidationMessage For="() => _model.Password" />
     </div>
 
     @if (!string.IsNullOrEmpty(_error))
@@ -56,7 +59,7 @@
 
         try
         {
-            await AuthState.SignInAsync(_model.Email, _model.Password);
+            await AuthState.SignInAsync(_model.Email.Trim(), _model.Password);
             Nav.NavigateTo("/");
         }
         catch (EmailNotVerifiedException)
@@ -99,10 +102,11 @@
 
     private class LoginModel
     {
-        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.EmailAddress]
+        [Required(ErrorMessage = "Please enter your email address.")]
+        [EmailAddress(ErrorMessage = "Please enter a valid email address.")]
         public string Email { get; set; } = "";
 
-        [System.ComponentModel.DataAnnotations.Required]
+        [Required(ErrorMessage = "Please enter your password.")]
         public string Password { get; set; } = "";
     }
 }

@@ -250,6 +250,89 @@ button, input, select, textarea {
     font-size: 0.85rem;
 }
 
+.validation-message {
+    display: block;
+    color: var(--color-danger);
+    font-size: 0.82rem;
+    margin: -0.6rem 0 0.9rem;
+    animation: fadeInUp var(--duration-fast) var(--ease-out) both;
+}
+
+.password-hints {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.9rem;
+    margin: -0.5rem 0 1rem;
+}
+
+.password-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    transition: color var(--duration-fast) var(--ease-out);
+}
+
+    .password-hint .icon {
+        opacity: 0.35;
+        transition: opacity var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+    }
+
+    .password-hint.met {
+        color: var(--color-success);
+    }
+
+        .password-hint.met .icon {
+            opacity: 1;
+            color: var(--color-success);
+        }
+
+.form-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.unsaved-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--color-warning);
+    background-color: color-mix(in srgb, var(--color-warning) 14%, var(--color-surface));
+    border-radius: var(--radius-pill);
+    padding: 0.25rem 0.7rem;
+    animation: fadeIn var(--duration-fast) var(--ease-out) both;
+}
+
+    .unsaved-badge .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: var(--color-warning);
+        animation: pulseDot 1.6s var(--ease-in-out) infinite;
+    }
+
+@keyframes pulseDot {
+    0%, 100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.35;
+    }
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.25rem;
+}
+
 .badge {
     display: inline-block;
     padding: 0.2rem 0.6rem;
@@ -521,10 +604,6 @@ button, input, select, textarea {
 
 .invalid {
     outline: 1px solid var(--color-danger);
-}
-
-.validation-message {
-    color: var(--color-danger);
 }
 
 #blazor-error-ui {
