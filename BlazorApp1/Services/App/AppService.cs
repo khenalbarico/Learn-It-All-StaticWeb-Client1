@@ -46,4 +46,16 @@ public class AppService(IApiClient _api) : IAppService
 
     public Task<List<Book>> GetMyLibraryBooks()
         => _api.GetAsync<List<Book>>(ApiFunctions.GetMyLibraryBooks);
+
+    public async Task LogActivity(string activity)
+    {
+        try
+        {
+            await _api.SubmitAsync(ApiFunctions.LogActivity, new { Activity = activity });
+        }
+        catch (Exception)
+        {
+            // best-effort; a failed activity log must never affect the user's actual action
+        }
+    }
 }

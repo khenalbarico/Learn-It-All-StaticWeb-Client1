@@ -53,6 +53,7 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
         IsAuthenticated = true;
         OnChange?.Invoke();
         _ = LoadProfileAsync();
+        _ = _appService.LogActivity("Logged in");
         return result;
     }
 
@@ -67,13 +68,14 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
         _ = LoadProfileAsync();
     }
 
-    public Task SignOutAsync()
+    public async Task SignOutAsync()
     {
+        await _appService.LogActivity("Logged out");
+
         _auth.SignOut();
         IsAuthenticated = false;
         CurrentUser = null;
         _libraryCache.ClearAll();
         OnChange?.Invoke();
-        return Task.CompletedTask;
     }
 }

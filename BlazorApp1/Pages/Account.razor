@@ -224,6 +224,7 @@
             }
 
             await Auth.ChangePasswordAsync(_passwordModel.NewPassword);
+            _ = AppService.LogActivity("Password changed");
             _passwordMessage = "Password updated.";
             _passwordSuccess = true;
             _passwordModel.NewPassword = "";

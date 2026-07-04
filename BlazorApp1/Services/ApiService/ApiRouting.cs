@@ -15,5 +15,6 @@ public class ApiRouting
         [ApiFunctions.GetMyLibraryBooks]  = "GetMyLibraryBooks",
         [ApiFunctions.CreatePaymentIntent] = "CreatePaymentIntent",
         [ApiFunctions.GetPaymentStatus]     = "GetPaymentStatus",
+        [ApiFunctions.LogActivity]          = "LogActivity",
     };
 }

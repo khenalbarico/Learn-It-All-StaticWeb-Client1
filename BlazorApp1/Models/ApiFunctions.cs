@@ -10,5 +10,6 @@ public enum ApiFunctions
     StreamBookDocument,
     RecordPurchase,
     CreatePaymentIntent,
-    GetPaymentStatus
+    GetPaymentStatus,
+    LogActivity
 }

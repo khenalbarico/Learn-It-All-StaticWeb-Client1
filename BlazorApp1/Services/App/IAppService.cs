@@ -11,4 +11,5 @@ public interface IAppService
     Task RecordPurchase(string bookUid, string orderId, string purchaseToken, decimal priceAtPurchase);
     Task<byte[]> GetBookDocumentBytes(string bookUid, string docUid);
     Task<List<Book>> GetMyLibraryBooks();
+    Task LogActivity(string activity);
 }
