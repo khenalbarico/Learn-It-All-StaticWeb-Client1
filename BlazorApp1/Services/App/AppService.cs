@@ -58,4 +58,7 @@ public class AppService(IApiClient _api) : IAppService
             // best-effort; a failed activity log must never affect the user's actual action
         }
     }
+
+    public Task UpdateUserKeywords(List<string> keywords)
+        => _api.SubmitAsync(ApiFunctions.UpdateUserKeywords, new { Keywords = keywords });
 }

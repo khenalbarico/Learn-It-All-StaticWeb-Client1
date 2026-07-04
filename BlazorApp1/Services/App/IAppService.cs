@@ -12,4 +12,5 @@ public interface IAppService
     Task<byte[]> GetBookDocumentBytes(string bookUid, string docUid);
     Task<List<Book>> GetMyLibraryBooks();
     Task LogActivity(string activity);
+    Task UpdateUserKeywords(List<string> keywords);
 }

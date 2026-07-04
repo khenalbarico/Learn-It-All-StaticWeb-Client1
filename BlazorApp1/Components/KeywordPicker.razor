@@ -1,0 +1,65 @@
+@using BlazorApp1.Models
+
+<div class="keyword-picker">
+    <h2>What are you into?</h2>
+    <p class="form-hint">Pick a few topics and we'll recommend books for you. You can change this anytime.</p>
+
+    <div class="keyword-grid">
+        @foreach (var (value, label, iconFile) in BookKeywords.All)
+        {
+            <button type="button"
+                    class="keyword-chip @(_selected.Contains(value) ? "selected" : "")"
+                    @onclick="() => Toggle(value)">
+                <img src="@($"imgs/keywords/{iconFile}")" alt="@label" />
+                <span>@label</span>
+            </button>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <p class="form-error">@_error</p>
+    }
+
+    <button type="button" class="btn btn-primary btn-block" @onclick="Save" disabled="@_guard.IsBusy">
+        @(_guard.IsBusy ? "Saving..." : "Save Interests")
+    </button>
+</div>
+
+@code {
+    [Parameter] public List<string> InitialSelection { get; set; } = [];
+    [Parameter] public EventCallback<List<string>> OnSave { get; set; }
+
+    private readonly HashSet<string> _selected = [];
+    private readonly SubmitGuard _guard = new();
+    private string? _error;
+    private bool _initialized;
+
+    protected override void OnParametersSet()
+    {
+        if (_initialized) return;
+        _initialized = true;
+
+        foreach (var keyword in InitialSelection)
+            _selected.Add(keyword);
+    }
+
+    private void Toggle(string value)
+    {
+        if (!_selected.Add(value))
+            _selected.Remove(value);
+    }
+
+    private Task Save() => _guard.RunAsync(async () =>
+    {
+        _error = null;
+
+        if (_selected.Count == 0)
+        {
+            _error = "Please choose at least one topic.";
+            return;
+        }
+
+        await OnSave.InvokeAsync(_selected.ToList());
+    });
+}

@@ -3,7 +3,6 @@
 @inject IAppService AppService
 @inject LibraryCacheService LibraryCache
 @inject NavigationManager Nav
-@inject HttpClient Http
 
 <PageTitle>My Library - Learn It All</PageTitle>
 
@@ -11,78 +10,46 @@
     <h1>My Library</h1>
 
     <AuthGate GuestMessage="Log in to see the books you've purchased.">
-        <GuestContent>
-            <p class="banner">Log in to see your real library &mdash; here's a preview of what's available.</p>
+        @if (_readError is not null)
+        {
+            <ErrorBanner Message="@_readError" OnRetry="() => { _readError = null; }" />
+        }
 
-            @if (_dummyCatalog is null)
-            {
-                <div class="book-grid">
-                    @for (var i = 0; i < 8; i++)
-                    {
-                        <BookCardSkeleton />
-                    }
-                </div>
-            }
-            else
-            {
-                <div class="book-grid">
-                    @for (var i = 0; i < _dummyCatalog.Count; i++)
-                    {
-                        var book = _dummyCatalog[i];
-                        <div style="--card-index: @i">
-                            <BookCard Title="@book.Title"
-                                      CoverImageUrl="@book.CoverImage"
-                                      Price="@book.Price"
-                                      OnActionClick="OpenComingSoon" />
-                        </div>
-                    }
-                </div>
-            }
-        </GuestContent>
-        <ChildContent>
-            @if (_readError is not null)
-            {
-                <ErrorBanner Message="@_readError" OnRetry="() => { _readError = null; }" />
-            }
-
-            @if (_loading)
-            {
-                <div class="book-grid">
-                    @for (var i = 0; i < 4; i++)
-                    {
-                        <BookCardSkeleton />
-                    }
-                </div>
-            }
-            else if (_error is not null)
-            {
-                <ErrorBanner Message="@_error" OnRetry="LoadMyLibraryAsync" />
-            }
-            else if (_books.Count == 0)
-            {
-                <EmptyState Message="You haven't bought any books yet. Head to the Library to find something to read." />
-            }
-            else
-            {
-                <div class="book-grid">
-                    @for (var i = 0; i < _books.Count; i++)
-                    {
-                        var book = _books[i];
-                        <div style="--card-index: @i">
-                            <BookCard Title="@(book.Title ?? "Untitled")"
-                                      CoverImageUrl="@book.ImageCoverUrl"
-                                      ShowPrice="false"
-                                      ActionLabel="Read"
-                                      OnActionClick="() => OnReadClick(book)" />
-                        </div>
-                    }
-                </div>
-            }
-        </ChildContent>
+        @if (_loading)
+        {
+            <div class="book-grid">
+                @for (var i = 0; i < 4; i++)
+                {
+                    <BookCardSkeleton />
+                }
+            </div>
+        }
+        else if (_error is not null)
+        {
+            <ErrorBanner Message="@_error" OnRetry="LoadMyLibraryAsync" />
+        }
+        else if (_books.Count == 0)
+        {
+            <EmptyState Message="You haven't bought any books yet. Head to the Library to find something to read." />
+        }
+        else
+        {
+            <div class="book-grid">
+                @for (var i = 0; i < _books.Count; i++)
+                {
+                    var book = _books[i];
+                    <div style="--card-index: @i">
+                        <BookCard Title="@(book.Title ?? "Untitled")"
+                                  CoverImageUrl="@book.ImageCoverUrl"
+                                  ShowPrice="false"
+                                  ActionLabel="Read"
+                                  OnActionClick="() => OnReadClick(book)" />
+                    </div>
+                }
+            </div>
+        }
     </AuthGate>
 </div>
-
-<ComingSoonModal @bind-IsOpen="_comingSoonOpen" />
 
 <DocumentListModal @bind-IsOpen="_docListOpen"
                     BookTitle="@_selectedBookTitle"
@@ -94,19 +61,15 @@
     private bool _loading = true;
     private string? _error;
     private string? _readError;
-    private bool _comingSoonOpen;
     private bool _docListOpen;
     private string _selectedBookUid = "";
     private string _selectedBookTitle = "";
     private List<BookDocs> _selectedBookDocs = [];
-    private List<DummyBook>? _dummyCatalog;
 
     protected override async Task OnInitializedAsync()
     {
         if (!AuthState.IsAuthenticated)
         {
-            _dummyCatalog = await Http.GetFromJsonAsync<List<DummyBook>>("data/dummy-books.json") ?? [];
-            _loading = false;
             return;
         }
 
@@ -168,6 +131,4 @@
 
     private void OnDocumentSelected(BookDocs doc)
         => Nav.NavigateTo($"/read/{_selectedBookUid}/{doc.Uid}");
-
-    private void OpenComingSoon() => _comingSoonOpen = true;
 }

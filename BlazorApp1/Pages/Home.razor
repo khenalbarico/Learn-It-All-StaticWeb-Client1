@@ -1,6 +1,8 @@
 @page "/"
 @implements IDisposable
 @inject AuthSessionState AuthState
+@inject IAppService AppService
+@inject NavigationManager Nav
 
 <PageTitle>Learn It All</PageTitle>
 
@@ -9,19 +11,147 @@
         <div class="centered-notice">
             <img src="imgs/app_logo.png" alt="Learn It All logo" />
             <h1>Welcome@(string.IsNullOrWhiteSpace(AuthState.CurrentUser?.FirstName) ? "" : $", {AuthState.CurrentUser!.FirstName}")!</h1>
-            <p class="form-hint">More is coming to this page soon.</p>
         </div>
+
+        @if (_showPicker)
+        {
+            <KeywordPicker InitialSelection="@(AuthState.CurrentUser?.Keywords ?? [])" OnSave="SaveKeywords" />
+        }
+        else
+        {
+            <div class="home-recommendations-header">
+                <h2>Recommended for you</h2>
+                <button type="button" class="btn-link" @onclick="() => _showPicker = true">Edit interests</button>
+            </div>
+
+            @if (_loading)
+            {
+                <div class="book-grid">
+                    @for (var i = 0; i < 8; i++)
+                    {
+                        <BookCardSkeleton />
+                    }
+                </div>
+            }
+            else if (_recommendedBooks.Count == 0)
+            {
+                <EmptyState Message="No recommendations yet for your interests. Browse the Library to find books." />
+            }
+            else
+            {
+                <div class="book-grid">
+                    @for (var i = 0; i < _recommendedBooks.Count; i++)
+                    {
+                        var book = _recommendedBooks[i];
+                        <div style="--card-index: @i">
+                            <BookCard Title="@book.Title"
+                                      CoverImageUrl="@book.CoverImageUrl"
+                                      Price="@book.Price"
+                                      ShowPrice="@(!IsOwned(book.Uid))"
+                                      ActionLabel="@(IsOwned(book.Uid) ? "Owned" : "Buy")"
+                                      OnActionClick="() => OnBookAction(book)" />
+                        </div>
+                    }
+                </div>
+            }
+        }
     </AuthGate>
 </div>
 
+<BuyBookModal @bind-IsOpen="_paymentModalOpen"
+              BookUid="@_purchasingBookUid"
+              BookTitle="@_purchasingBookTitle"
+              BookDescription="@_purchasingBookDescription"
+              BookCoverUrl="@_purchasingBookCoverUrl"
+              BookPrice="@_purchasingBookPrice" />
+
 @code {
-    protected override void OnInitialized()
+    private bool _showPicker;
+    private bool _loading = true;
+    private List<BookCardData> _recommendedBooks = [];
+
+    private bool _paymentModalOpen;
+    private string _purchasingBookUid = "";
+    private string _purchasingBookTitle = "";
+    private string? _purchasingBookDescription;
+    private string? _purchasingBookCoverUrl;
+    private decimal _purchasingBookPrice;
+
+    protected override async Task OnInitializedAsync()
     {
-        AuthState.OnChange += StateHasChanged;
+        AuthState.OnChange += OnAuthChanged;
+        await LoadAsync();
     }
+
+    private async void OnAuthChanged()
+    {
+        await LoadAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (AuthState.IsInitializing || !AuthState.IsAuthenticated) return;
+
+        var keywords = AuthState.CurrentUser?.Keywords ?? [];
+        _showPicker = keywords.Count == 0;
+
+        if (_showPicker) return;
+
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            var allBooks = await AppService.GetAllBooks();
+            _recommendedBooks = allBooks
+                .Where(b => b.Keywords.Intersect(keywords).Any())
+                .Select(ToCardData)
+                .ToList();
+        }
+        catch (Exception)
+        {
+            _recommendedBooks = [];
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveKeywords(List<string> selected)
+    {
+        await AppService.UpdateUserKeywords(selected);
+        await AuthState.RefreshProfileAsync();
+        await LoadAsync();
+    }
+
+    private void OnBookAction(BookCardData book)
+    {
+        if (IsOwned(book.Uid))
+        {
+            Nav.NavigateTo("/my-library");
+            return;
+        }
+
+        _purchasingBookUid = book.Uid;
+        _purchasingBookTitle = book.Title;
+        _purchasingBookDescription = book.Description;
+        _purchasingBookCoverUrl = book.CoverImageUrl;
+        _purchasingBookPrice = book.Price;
+        _paymentModalOpen = true;
+    }
+
+    private bool IsOwned(string bookUid)
+        => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Library.Any(l => l.Uid == bookUid) == true;
+
+    private static BookCardData ToCardData(Book book) => new(book.Uid, book.Title ?? "Untitled", book.ImageCoverUrl, book.Price, book.Description);
+
+    private record BookCardData(string Uid, string Title, string? CoverImageUrl, decimal Price, string? Description);
 
     public void Dispose()
     {
-        AuthState.OnChange -= StateHasChanged;
+        AuthState.OnChange -= OnAuthChanged;
     }
 }

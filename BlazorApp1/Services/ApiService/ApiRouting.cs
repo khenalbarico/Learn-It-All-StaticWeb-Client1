@@ -16,5 +16,6 @@ public class ApiRouting
         [ApiFunctions.CreatePaymentIntent] = "CreatePaymentIntent",
         [ApiFunctions.GetPaymentStatus]     = "GetPaymentStatus",
         [ApiFunctions.LogActivity]          = "LogActivity",
+        [ApiFunctions.UpdateUserKeywords]   = "UpdateUserKeywords",
     };
 }
