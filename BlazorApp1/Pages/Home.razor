@@ -92,6 +92,7 @@
     private async Task LoadAsync()
     {
         if (AuthState.IsInitializing || !AuthState.IsAuthenticated) return;
+        if (AuthState.CurrentUser is null) return;
 
         var keywords = AuthState.CurrentUser?.Keywords ?? [];
         _showPicker = keywords.Count == 0;

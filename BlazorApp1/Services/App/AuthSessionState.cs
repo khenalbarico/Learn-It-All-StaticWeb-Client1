@@ -17,11 +17,12 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
     {
         await _auth.TryRestoreSessionAsync();
         IsAuthenticated = _auth.IsAuthenticated;
-        IsInitializing = false;
-        OnChange?.Invoke();
 
         if (IsAuthenticated)
-            _ = LoadProfileAsync();
+            await LoadProfileAsync();
+
+        IsInitializing = false;
+        OnChange?.Invoke();
     }
 
     public async Task LoadProfileAsync()

@@ -18,7 +18,11 @@
 
     <CategoryTabs Categories="_categories" SelectedCategory="_selectedCategory" SelectedCategoryChanged="OnCategoryChanged" IsBusy="_loading" />
 
-    @if (AuthState.IsInitializing || _loading)
+    @if (AuthState.IsAuthenticated && AuthState.ProfileLoadError is not null)
+    {
+        <ErrorBanner Message="@AuthState.ProfileLoadError" OnRetry="() => AuthState.RefreshProfileAsync()" />
+    }
+    else if (AuthState.IsInitializing || (AuthState.IsAuthenticated && AuthState.CurrentUser is null) || _loading)
     {
         <div class="book-grid">
             @for (var i = 0; i < 8; i++)
@@ -109,6 +113,7 @@
     private async Task LoadCategoryAsync(string category)
     {
         if (AuthState.IsInitializing) return;
+        if (AuthState.IsAuthenticated && AuthState.CurrentUser is null) return;
 
         _loading = true;
         _error = null;

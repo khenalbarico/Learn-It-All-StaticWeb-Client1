@@ -15,6 +15,14 @@ else if (!AuthState.IsAuthenticated)
         <GuestNotice Message="@GuestMessage" />
     }
 }
+else if (AuthState.ProfileLoadError is not null)
+{
+    <ErrorBanner Message="@AuthState.ProfileLoadError" OnRetry="() => AuthState.RefreshProfileAsync()" />
+}
+else if (AuthState.CurrentUser is null)
+{
+    <div class="spinner"></div>
+}
 else
 {
     @ChildContent

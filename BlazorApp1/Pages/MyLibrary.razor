@@ -1,4 +1,5 @@
 @page "/my-library"
+@implements IDisposable
 @inject AuthSessionState AuthState
 @inject IAppService AppService
 @inject LibraryCacheService LibraryCache
@@ -68,10 +69,20 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (!AuthState.IsAuthenticated)
-        {
-            return;
-        }
+        AuthState.OnChange += OnAuthChanged;
+        await LoadIfReadyAsync();
+    }
+
+    private async void OnAuthChanged()
+    {
+        await LoadIfReadyAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadIfReadyAsync()
+    {
+        if (AuthState.IsInitializing || !AuthState.IsAuthenticated) return;
+        if (AuthState.CurrentUser is null) return;
 
         await LoadMyLibraryAsync();
     }
@@ -131,4 +142,9 @@
 
     private void OnDocumentSelected(BookDocs doc)
         => Nav.NavigateTo($"/read/{_selectedBookUid}/{doc.Uid}");
+
+    public void Dispose()
+    {
+        AuthState.OnChange -= OnAuthChanged;
+    }
 }
