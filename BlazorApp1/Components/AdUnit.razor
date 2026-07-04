@@ -1,0 +1,31 @@
+@inject IAdSenseCfg AdCfg
+@inject JsInteropService JsInterop
+
+<div class="ad-slot @CssClass">
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="@AdCfg.ClientId"
+         data-ad-slot="@SlotId"
+         data-ad-format="@Format"
+         data-full-width-responsive="@(FullWidthResponsive ? "true" : "false")"
+         @key="SlotId">
+    </ins>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string SlotId { get; set; } = "";
+    [Parameter] public string Format { get; set; } = "auto";
+    [Parameter] public bool FullWidthResponsive { get; set; } = true;
+    [Parameter] public string CssClass { get; set; } = "";
+
+    private bool _pushed;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_pushed)
+        {
+            _pushed = true;
+            await JsInterop.PushAdsbygoogleAsync();
+        }
+    }
+}

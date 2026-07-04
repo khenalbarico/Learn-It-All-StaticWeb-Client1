@@ -1,7 +1,12 @@
 @inherits LayoutComponentBase
+@inject IAdSenseCfg AdCfg
 
 <NavMenu />
+
+<AdUnit SlotId="@AdCfg.TopBannerSlotId" CssClass="ad-top-banner" />
 
 <main>
     @Body
 </main>
+
+<Footer />

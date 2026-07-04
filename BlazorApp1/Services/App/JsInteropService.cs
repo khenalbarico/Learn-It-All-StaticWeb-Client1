@@ -50,4 +50,10 @@ public class JsInteropService(IJSRuntime _jsRuntime)
         var module = await GetModuleAsync();
         await module.InvokeVoidAsync("revokeBlobUrl", url);
     }
+
+    public async Task PushAdsbygoogleAsync()
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("pushAdsbygoogle");
+    }
 }

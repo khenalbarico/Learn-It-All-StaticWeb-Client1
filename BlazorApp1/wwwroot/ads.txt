@@ -1,0 +1,4 @@
+# PLACEHOLDER — replace this line with the exact text AdSense gives you
+# after your site is approved: AdSense dashboard -> Sites -> select your
+# site -> "Site ads.txt" banner shows a copy-paste-ready line, e.g.:
+# google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0

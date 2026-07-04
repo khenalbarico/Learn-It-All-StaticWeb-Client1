@@ -5,6 +5,7 @@
 @inject LibraryCacheService LibraryCache
 @inject JsInteropService JsInterop
 @inject NavigationManager Nav
+@inject IAdSenseCfg AdCfg
 
 <PageTitle>@(_currentDoc?.Title ?? _book?.Title ?? "Reading") - Learn It All</PageTitle>
 
@@ -40,6 +41,8 @@
                 </select>
             }
         </div>
+
+        <AdUnit SlotId="@AdCfg.ReaderSlotId" CssClass="ad-reader-strip" />
 
         @if (_loading)
         {

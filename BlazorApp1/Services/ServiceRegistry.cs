@@ -13,6 +13,7 @@ public static class ServiceRegistry
     public static IServiceCollection AddLearnItAllServices(this IServiceCollection services)
     {
         services.AddSingleton<IFirebaseCfg, FirebaseWebCfg>();
+        services.AddSingleton<IAdSenseCfg, AdSenseWebCfg>();
         services.AddSingleton<JsInteropService>();
         services.AddSingleton<IAuthPersistence, BrowserAuthPersistence>();
         services.AddSingleton<TokenCache>();
