@@ -2,7 +2,8 @@
     @foreach (var (value, label) in Categories)
     {
         <button class="tab-button @(value == SelectedCategory ? "active" : "")"
-                @onclick="() => SelectAsync(value)">
+                @onclick="() => SelectAsync(value)"
+                disabled="@IsBusy">
             @label
         </button>
     }
@@ -12,6 +13,7 @@
     [Parameter] public List<(string Value, string Label)> Categories { get; set; } = [];
     [Parameter] public string SelectedCategory { get; set; } = "";
     [Parameter] public EventCallback<string> SelectedCategoryChanged { get; set; }
+    [Parameter] public bool IsBusy { get; set; }
 
     private async Task SelectAsync(string value)
     {

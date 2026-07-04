@@ -12,7 +12,7 @@
                 <h3>@BookTitle</h3>
                 <p class="form-hint book-detail-desc">@BookDescription</p>
                 <div class="book-detail-price">₱@BookPrice.ToString("N2")</div>
-                <button class="btn btn-primary btn-block" @onclick="StartAsync">Confirm Purchase</button>
+                <button class="btn btn-primary btn-block" @onclick="StartAsync" disabled="@_guard.IsBusy">Confirm Purchase</button>
                 <button class="btn btn-ghost btn-block" @onclick="Close">Cancel</button>
             }
             else
@@ -55,7 +55,7 @@
                     }
                     else
                     {
-                        <button class="btn btn-primary btn-block" @onclick="StartAsync">Try Again</button>
+                        <button class="btn btn-primary btn-block" @onclick="StartAsync" disabled="@_guard.IsBusy">Try Again</button>
                     }
                 }
                 else if (_stage == Stage.Failed)
@@ -69,7 +69,7 @@
                     }
                     else
                     {
-                        <button class="btn btn-primary btn-block" @onclick="StartAsync">Try Again</button>
+                        <button class="btn btn-primary btn-block" @onclick="StartAsync" disabled="@_guard.IsBusy">Try Again</button>
                     }
                 }
             }
@@ -98,6 +98,7 @@
     private int _cooldownSeconds;
     private bool _finalVerifyDone;
     private CancellationTokenSource? _cts;
+    private readonly SubmitGuard _guard = new();
 
     private string ResolvedCover => string.IsNullOrWhiteSpace(BookCoverUrl) ? "imgs/app_logo.png" : BookCoverUrl!;
 
@@ -111,7 +112,7 @@
         }
     }
 
-    private async Task StartAsync()
+    private Task StartAsync() => _guard.RunAsync(async () =>
     {
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
@@ -153,7 +154,7 @@
         }
 
         StateHasChanged();
-    }
+    });
 
     private async Task PollAsync(CancellationToken token)
     {

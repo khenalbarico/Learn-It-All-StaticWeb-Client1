@@ -3,7 +3,7 @@
     <span>@Message</span>
     @if (OnRetry.HasDelegate)
     {
-        <button class="btn btn-ghost btn-sm" @onclick="() => OnRetry.InvokeAsync()">
+        <button class="btn btn-ghost btn-sm" @onclick="RetryAsync" disabled="@_guard.IsBusy">
             <Icon Name="refresh" Size="14" />
             Retry
         </button>
@@ -13,4 +13,8 @@
 @code {
     [Parameter] public string Message { get; set; } = "Something went wrong.";
     [Parameter] public EventCallback OnRetry { get; set; }
+
+    private readonly SubmitGuard _guard = new();
+
+    private Task RetryAsync() => _guard.RunAsync(() => OnRetry.InvokeAsync());
 }

@@ -23,7 +23,7 @@
 
             @if (_book is not null && _book.Documents.Count > 1)
             {
-                <select class="reader-select" value="@DocUid" @onchange="OnDocumentChanged">
+                <select class="reader-select" value="@DocUid" @onchange="OnDocumentChanged" disabled="@_loading">
                     @foreach (var doc in _book.Documents)
                     {
                         <option value="@doc.Uid">@(string.IsNullOrWhiteSpace(doc.Title) ? "Document" : doc.Title)</option>
@@ -33,7 +33,7 @@
 
             @if (_libraryBooks.Count > 1)
             {
-                <select class="reader-select" value="@BookUid" @onchange="OnBookChanged">
+                <select class="reader-select" value="@BookUid" @onchange="OnBookChanged" disabled="@_loading">
                     @foreach (var b in _libraryBooks)
                     {
                         <option value="@b.Uid">@(b.Title ?? "Untitled")</option>

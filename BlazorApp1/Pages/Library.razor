@@ -16,7 +16,7 @@
         <p class="banner">You're browsing as a guest. Sample books are shown below &mdash; authenticate to see the real catalog.</p>
     }
 
-    <CategoryTabs Categories="_categories" SelectedCategory="_selectedCategory" SelectedCategoryChanged="OnCategoryChanged" />
+    <CategoryTabs Categories="_categories" SelectedCategory="_selectedCategory" SelectedCategoryChanged="OnCategoryChanged" IsBusy="_loading" />
 
     @if (AuthState.IsInitializing || _loading)
     {

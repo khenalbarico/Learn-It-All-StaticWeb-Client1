@@ -25,7 +25,7 @@
                 <ThemeToggle />
                 @if (AuthState.IsAuthenticated)
                 {
-                    <button class="btn btn-secondary" @onclick="SignOut">
+                    <button class="btn btn-secondary" @onclick="SignOut" disabled="@_guard.IsBusy">
                         <Icon Name="logout" Size="16" />
                         Log Out@(string.IsNullOrWhiteSpace(AuthState.CurrentUser?.FirstName) ? "" : $" ({AuthState.CurrentUser!.FirstName})")
                     </button>
@@ -44,6 +44,7 @@
 
 @code {
     private bool _menuOpen;
+    private readonly SubmitGuard _guard = new();
 
     protected override void OnInitialized()
     {
@@ -60,12 +61,12 @@
         Nav.NavigateTo("/auth");
     }
 
-    private async Task SignOut()
+    private Task SignOut() => _guard.RunAsync(async () =>
     {
         CloseMenu();
         await AuthState.SignOutAsync();
         Nav.NavigateTo("/");
-    }
+    });
 
     public void Dispose()
     {
