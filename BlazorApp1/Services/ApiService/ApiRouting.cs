@@ -17,5 +17,7 @@ public class ApiRouting
         [ApiFunctions.GetPaymentStatus]     = "GetPaymentStatus",
         [ApiFunctions.LogActivity]          = "LogActivity",
         [ApiFunctions.UpdateUserKeywords]   = "UpdateUserKeywords",
+        [ApiFunctions.SaveReadingProgress]  = "SaveReadingProgress",
+        [ApiFunctions.SetFavorite]          = "SetFavorite",
     };
 }

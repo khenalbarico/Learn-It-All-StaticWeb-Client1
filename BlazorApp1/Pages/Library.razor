@@ -16,7 +16,12 @@
         <p class="banner">You're browsing as a guest. Sample books are shown below &mdash; authenticate to see the real catalog.</p>
     }
 
-    <CategoryTabs Categories="_categories" SelectedCategory="_selectedCategory" SelectedCategoryChanged="OnCategoryChanged" IsBusy="_loading" />
+    <CategoryTabs Categories="_categories" SelectedCategory="@_selectedCategory" SelectedCategoryChanged="OnCategoryChanged" IsBusy="_loading" />
+
+    <div class="search-field">
+        <Icon Name="search" Size="18" />
+        <input type="search" placeholder="Search books..." value="@_searchTerm" @oninput="OnSearchInput" />
+    </div>
 
     @if (AuthState.IsAuthenticated && AuthState.ProfileLoadError is not null)
     {
@@ -37,7 +42,7 @@
     }
     else if (_books.Count == 0)
     {
-        <EmptyState Message="No books in this category yet." />
+        <EmptyState Message="@(string.IsNullOrWhiteSpace(_searchTerm) ? "No books in this category yet." : $"No books match \"{_searchTerm}\".")" />
     }
     else
     {
@@ -74,8 +79,13 @@
         ("Reviewer", "Reviewer")
     ];
 
+    [SupplyParameterFromQuery(Name = "category")]
+    [Parameter]
+    public string? CategoryQuery { get; set; }
+
     private string _selectedCategory = "CollegeCourse";
-    private List<BookCardData> _books = [];
+    private List<BookCardData> _categoryBooks = [];
+    private string _searchTerm = "";
     private bool _loading;
     private string? _error;
     private bool _comingSoonOpen;
@@ -87,10 +97,23 @@
     private decimal _purchasingBookPrice;
     private List<DummyBook>? _dummyCatalog;
 
+    private List<BookCardData> _books => string.IsNullOrWhiteSpace(_searchTerm)
+        ? _categoryBooks
+        : _categoryBooks.Where(b => b.Title.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
+
     protected override void OnInitialized()
     {
         AuthState.OnChange += OnAuthChanged;
+
+        if (!string.IsNullOrWhiteSpace(CategoryQuery))
+        {
+            var match = _categories.FirstOrDefault(c => string.Equals(c.Value, CategoryQuery, StringComparison.OrdinalIgnoreCase));
+            if (match != default)
+                _selectedCategory = match.Value;
+        }
     }
+
+    private void OnSearchInput(ChangeEventArgs e) => _searchTerm = e.Value?.ToString() ?? "";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -121,37 +144,40 @@
 
         try
         {
+            List<BookCardData> books;
             if (AuthState.IsAuthenticated)
             {
                 if (LibraryCache.TryGetCategory(category, out var cached))
                 {
-                    _books = cached.Select(ToCardData).ToList();
+                    books = cached.Select(ToCardData).ToList();
                 }
                 else
                 {
                     var fetched = await AppService.GetBooksByCategory(category);
                     LibraryCache.SetCategory(category, fetched);
-                    _books = fetched.Select(ToCardData).ToList();
+                    books = fetched.Select(ToCardData).ToList();
                 }
             }
             else
             {
                 _dummyCatalog ??= await Http.GetFromJsonAsync<List<DummyBook>>("data/dummy-books.json") ?? [];
-                _books = _dummyCatalog
+                books = _dummyCatalog
                     .Where(b => string.Equals(b.Category, category, StringComparison.OrdinalIgnoreCase))
                     .Select(ToCardData)
                     .ToList();
             }
+
+            _categoryBooks = books.OrderBy(b => b.Title, StringComparer.OrdinalIgnoreCase).ToList();
         }
         catch (ApiUnavailableException ex)
         {
             _error = ex.Message;
-            _books = [];
+            _categoryBooks = [];
         }
         catch (Exception)
         {
             _error = "Could not load books for this category. Please try again.";
-            _books = [];
+            _categoryBooks = [];
         }
         finally
         {

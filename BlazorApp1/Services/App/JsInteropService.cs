@@ -51,6 +51,12 @@ public class JsInteropService(IJSRuntime _jsRuntime)
         return await module.InvokeAsync<int>("goToPdfPage", containerId, pageNum);
     }
 
+    public async Task<double> ZoomPdfAsync(string containerId, int delta)
+    {
+        var module = await GetModuleAsync();
+        return await module.InvokeAsync<double>("zoomPdf", containerId, delta);
+    }
+
     public async Task DisposePdfAsync(string containerId)
     {
         var module = await GetModuleAsync();

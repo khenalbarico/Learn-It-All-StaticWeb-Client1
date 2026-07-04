@@ -21,6 +21,15 @@
                 <span class="reader-doc-title">@(_currentDoc?.Title ?? "")</span>
             </div>
 
+            @if (_libraryEntry is not null)
+            {
+                <button class="btn btn-ghost reader-favorite @(_isFavorite ? "is-favorite" : "")"
+                        @onclick="ToggleFavorite" title="@(_isFavorite ? "Remove from favorites" : "Add to favorites")"
+                        aria-label="Toggle favorite">
+                    <Icon Name="@(_isFavorite ? "heart-filled" : "heart")" Size="18" />
+                </button>
+            }
+
             @if (_book is not null && _book.Documents.Count > 1)
             {
                 <select class="reader-select" value="@DocUid" @onchange="OnDocumentChanged" disabled="@_loading">
@@ -52,6 +61,16 @@
                         <Icon Name="chevron-right" Size="16" />
                     </button>
                 </div>
+
+                <div class="reader-zoomnav">
+                    <button class="btn btn-ghost btn-sm reader-pagenav-btn" @onclick="ZoomOut" disabled="@(_zoom <= MinZoom)" aria-label="Zoom out">
+                        <Icon Name="zoom-out" Size="16" />
+                    </button>
+                    <span class="reader-page-indicator">@((_zoom * 100).ToString("0"))%</span>
+                    <button class="btn btn-ghost btn-sm reader-pagenav-btn" @onclick="ZoomIn" disabled="@(_zoom >= MaxZoom)" aria-label="Zoom in">
+                        <Icon Name="zoom-in" Size="16" />
+                    </button>
+                </div>
             }
         </div>
 
@@ -78,15 +97,23 @@
     [Parameter] public string BookUid { get; set; } = "";
     [Parameter] public string DocUid { get; set; } = "";
 
+    private const double MinZoom = 0.5;
+    private const double MaxZoom = 4.0;
+    private const int ProgressSaveDebounceMs = 1500;
+
     private readonly string _containerId = $"pdf-viewer-{Guid.NewGuid():N}";
     private Book? _book;
     private BookDocs? _currentDoc;
     private List<Book> _libraryBooks = [];
+    private UserLibrary? _libraryEntry;
+    private bool _isFavorite;
     private bool _loading = true;
     private string? _error;
     private int _currentPage = 1;
     private int _totalPages;
+    private double _zoom = 1.0;
     private string? _loadedForKey;
+    private CancellationTokenSource? _progressSaveCts;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -121,6 +148,8 @@
 
         _book = _libraryBooks.FirstOrDefault(b => b.Uid == BookUid);
         _currentDoc = _book?.Documents.FirstOrDefault(d => d.Uid == DocUid);
+        _libraryEntry = AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == BookUid);
+        _isFavorite = _libraryEntry?.IsFavorite ?? false;
     }
 
     private async Task LoadDocumentAsync()
@@ -129,6 +158,7 @@
         _error = null;
         _totalPages = 0;
         _currentPage = 1;
+        _zoom = 1.0;
         StateHasChanged();
 
         try
@@ -144,6 +174,11 @@
 
             _totalPages = await JsInterop.LoadPdfAsync(_containerId, bytes);
             _currentPage = 1;
+
+            if (_libraryEntry is { LastReadDocUid: not null } entry && entry.LastReadDocUid == DocUid && entry.LastReadPage > 1)
+            {
+                _currentPage = await JsInterop.GoToPdfPageAsync(_containerId, Math.Min(entry.LastReadPage, _totalPages));
+            }
         }
         catch (ApiUnavailableException ex)
         {
@@ -172,7 +207,51 @@
     {
         if (_loading || _error is not null) return;
         _currentPage = await JsInterop.GoToPdfPageAsync(_containerId, page);
+        ScheduleProgressSave();
         StateHasChanged();
+    }
+
+    private async Task ZoomIn()
+    {
+        if (_loading || _error is not null) return;
+        _zoom = await JsInterop.ZoomPdfAsync(_containerId, 1);
+        StateHasChanged();
+    }
+
+    private async Task ZoomOut()
+    {
+        if (_loading || _error is not null) return;
+        _zoom = await JsInterop.ZoomPdfAsync(_containerId, -1);
+        StateHasChanged();
+    }
+
+    private async void ScheduleProgressSave()
+    {
+        _progressSaveCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        _progressSaveCts = cts;
+        var pageToSave = _currentPage;
+        var totalPagesToSave = _totalPages;
+
+        try
+        {
+            await Task.Delay(ProgressSaveDebounceMs, cts.Token);
+            await AppService.SaveReadingProgress(BookUid, DocUid, pageToSave, totalPagesToSave);
+            AuthState.UpdateLocalReadingProgress(BookUid, DocUid, pageToSave, totalPagesToSave);
+        }
+        catch (TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task ToggleFavorite()
+    {
+        var newValue = !_isFavorite;
+        _isFavorite = newValue;
+        StateHasChanged();
+
+        await AppService.SetFavorite(BookUid, newValue);
+        _ = AuthState.RefreshProfileAsync();
     }
 
     private void OnDocumentChanged(ChangeEventArgs e)
@@ -198,6 +277,13 @@
 
     public void Dispose()
     {
+        _progressSaveCts?.Cancel();
+        if (_totalPages > 0 && _error is null)
+        {
+            _ = AppService.SaveReadingProgress(BookUid, DocUid, _currentPage, _totalPages);
+            AuthState.UpdateLocalReadingProgress(BookUid, DocUid, _currentPage, _totalPages);
+        }
+
         _ = JsInterop.DisposePdfAsync(_containerId);
     }
 }

@@ -61,4 +61,19 @@ public class AppService(IApiClient _api) : IAppService
 
     public Task UpdateUserKeywords(List<string> keywords)
         => _api.SubmitAsync(ApiFunctions.UpdateUserKeywords, new { Keywords = keywords });
+
+    public async Task SaveReadingProgress(string bookUid, string docUid, int page, int totalPages)
+    {
+        try
+        {
+            await _api.SubmitAsync(ApiFunctions.SaveReadingProgress, new { BookUid = bookUid, DocUid = docUid, Page = page, TotalPages = totalPages });
+        }
+        catch (Exception)
+        {
+            // best-effort; losing a progress-save must never interrupt reading
+        }
+    }
+
+    public Task SetFavorite(string bookUid, bool isFavorite)
+        => _api.SubmitAsync(ApiFunctions.SetFavorite, new { BookUid = bookUid, IsFavorite = isFavorite });
 }

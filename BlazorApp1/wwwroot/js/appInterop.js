@@ -35,10 +35,14 @@ function getPdfjsLib() {
 }
 
 const pdfViewers = new Map();
+const pinchHandlers = new Map();
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 4;
+const ZOOM_STEP = 0.25;
 
 function resizeAllPdfViewers() {
     for (const containerId of pdfViewers.keys()) {
-        renderCurrentPage(containerId);
+        renderCurrentPage(containerId, true);
     }
 }
 
@@ -63,7 +67,7 @@ function waitForContainerWidth(containerId, attemptsLeft) {
     });
 }
 
-async function renderCurrentPage(containerId) {
+async function renderCurrentPage(containerId, preserveScroll = false) {
     const state = pdfViewers.get(containerId);
     if (!state || state.rendering) return;
 
@@ -75,9 +79,13 @@ async function renderCurrentPage(containerId) {
 
     state.rendering = true;
     try {
+        const prevLeftRatio = preserveScroll ? container.scrollLeft / (container.scrollWidth || 1) : 0;
+        const prevTopRatio = preserveScroll ? container.scrollTop / (container.scrollHeight || 1) : 0;
+
         const page = await state.doc.getPage(state.pageNum);
         const unscaledWidth = page.getViewport({ scale: 1 }).width;
-        const scale = container.clientWidth / unscaledWidth;
+        const baseScale = container.clientWidth / unscaledWidth;
+        const scale = baseScale * state.zoom;
         const dpr = window.devicePixelRatio || 1;
         const viewport = page.getViewport({ scale: scale * dpr });
 
@@ -93,9 +101,75 @@ async function renderCurrentPage(containerId) {
 
         const ctx = canvas.getContext('2d');
         await page.render({ canvasContext: ctx, viewport }).promise;
+
+        if (preserveScroll) {
+            container.scrollLeft = prevLeftRatio * container.scrollWidth;
+            container.scrollTop = prevTopRatio * container.scrollHeight;
+        }
     } finally {
         state.rendering = false;
     }
+}
+
+function attachPinchZoom(containerId, container) {
+    let pinching = false;
+    let pinchStartDistance = 0;
+    let pinchStartZoom = 1;
+    let lastRatio = 1;
+
+    function distance(touches) {
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function onTouchStart(e) {
+        if (e.touches.length !== 2) return;
+        const state = pdfViewers.get(containerId);
+        if (!state) return;
+
+        pinching = true;
+        pinchStartDistance = distance(e.touches);
+        pinchStartZoom = state.zoom;
+        lastRatio = 1;
+        e.preventDefault();
+    }
+
+    function onTouchMove(e) {
+        if (!pinching || e.touches.length !== 2) return;
+        e.preventDefault();
+
+        lastRatio = distance(e.touches) / pinchStartDistance;
+        const canvas = container.querySelector('canvas');
+        if (canvas) canvas.style.transform = `scale(${lastRatio})`;
+    }
+
+    async function onTouchEnd(e) {
+        if (!pinching || e.touches.length >= 2) return;
+        pinching = false;
+
+        const canvas = container.querySelector('canvas');
+        if (canvas) canvas.style.transform = '';
+
+        const state = pdfViewers.get(containerId);
+        if (!state) return;
+
+        state.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, pinchStartZoom * lastRatio));
+        lastRatio = 1;
+        await renderCurrentPage(containerId, true);
+    }
+
+    container.addEventListener('touchstart', onTouchStart, { passive: false });
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchend', onTouchEnd);
+    container.addEventListener('touchcancel', onTouchEnd);
+
+    return () => {
+        container.removeEventListener('touchstart', onTouchStart);
+        container.removeEventListener('touchmove', onTouchMove);
+        container.removeEventListener('touchend', onTouchEnd);
+        container.removeEventListener('touchcancel', onTouchEnd);
+    };
 }
 
 export async function loadPdf(containerId, bytes) {
@@ -108,12 +182,17 @@ export async function loadPdf(containerId, bytes) {
     }
 
     const container = document.getElementById(containerId);
-    if (container) container.innerHTML = '';
+    if (container) {
+        container.innerHTML = '';
+        if (!pinchHandlers.has(containerId)) {
+            pinchHandlers.set(containerId, attachPinchZoom(containerId, container));
+        }
+    }
 
     const loadingTask = pdfjsLib.getDocument({ data: bytes });
     const doc = await loadingTask.promise;
 
-    pdfViewers.set(containerId, { doc, pageNum: 1, rendering: false });
+    pdfViewers.set(containerId, { doc, pageNum: 1, zoom: 1, rendering: false });
     await renderCurrentPage(containerId);
 
     return doc.numPages;
@@ -128,12 +207,27 @@ export async function goToPdfPage(containerId, pageNum) {
     return state.pageNum;
 }
 
+export async function zoomPdf(containerId, delta) {
+    const state = pdfViewers.get(containerId);
+    if (!state) return 1;
+
+    state.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, +(state.zoom + delta * ZOOM_STEP).toFixed(2)));
+    await renderCurrentPage(containerId, true);
+    return state.zoom;
+}
+
 export function disposePdf(containerId) {
     const state = pdfViewers.get(containerId);
-    if (!state) return;
+    if (state) {
+        state.doc.destroy();
+        pdfViewers.delete(containerId);
+    }
 
-    state.doc.destroy();
-    pdfViewers.delete(containerId);
+    const detach = pinchHandlers.get(containerId);
+    if (detach) {
+        detach();
+        pinchHandlers.delete(containerId);
+    }
 }
 
 export function pushAdsbygoogle() {

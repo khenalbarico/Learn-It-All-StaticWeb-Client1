@@ -48,6 +48,18 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
 
     public Task RefreshProfileAsync() => LoadProfileAsync();
 
+    public void UpdateLocalReadingProgress(string bookUid, string docUid, int page, int totalPages)
+    {
+        var entry = CurrentUser?.Library.FirstOrDefault(l => l.Uid == bookUid);
+        if (entry is null) return;
+
+        entry.LastReadDocUid = docUid;
+        entry.LastReadPage = page;
+        entry.LastReadTotalPages = totalPages;
+        entry.LastReadAt = DateTime.UtcNow;
+        OnChange?.Invoke();
+    }
+
     public async Task<AuthResult> SignInAsync(string email, string password)
     {
         var result = await _auth.SignInWithEmailAsync(email, password);

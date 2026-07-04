@@ -12,5 +12,7 @@ public enum ApiFunctions
     CreatePaymentIntent,
     GetPaymentStatus,
     LogActivity,
-    UpdateUserKeywords
+    UpdateUserKeywords,
+    SaveReadingProgress,
+    SetFavorite
 }

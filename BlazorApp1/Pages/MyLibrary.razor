@@ -16,6 +16,24 @@
             <ErrorBanner Message="@_readError" OnRetry="() => { _readError = null; }" />
         }
 
+        @if (_myLibraryBooks.Count > 0)
+        {
+            <div class="list-toolbar">
+                <div class="search-field">
+                    <Icon Name="search" Size="18" />
+                    <input type="search" placeholder="Search your books..." value="@_searchTerm" @oninput="OnSearchInput" />
+                </div>
+                <div class="sort-field">
+                    <Icon Name="sort" Size="16" />
+                    <select value="@_sortMode" @onchange="OnSortChanged">
+                        <option value="Alphabetical">Alphabetical</option>
+                        <option value="RecentlyPurchased">Recently Purchased</option>
+                        <option value="RecentlyRead">Recently Read</option>
+                    </select>
+                </div>
+            </div>
+        }
+
         @if (_loading)
         {
             <div class="book-grid">
@@ -28,6 +46,10 @@
         else if (_error is not null)
         {
             <ErrorBanner Message="@_error" OnRetry="LoadMyLibraryAsync" />
+        }
+        else if (_books.Count == 0 && !string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            <EmptyState Message="@($"No books match \"{_searchTerm}\".")" />
         }
         else if (_books.Count == 0)
         {
@@ -44,7 +66,10 @@
                                   CoverImageUrl="@book.ImageCoverUrl"
                                   ShowPrice="false"
                                   ActionLabel="Read"
-                                  OnActionClick="() => OnReadClick(book)" />
+                                  OnActionClick="() => OnReadClick(book)"
+                                  ShowFavoriteToggle="true"
+                                  IsFavorite="@IsFavorite(book.Uid)"
+                                  OnFavoriteToggle="@(isFavorite => OnFavoriteToggle(book.Uid, isFavorite))" />
                     </div>
                 }
             </div>
@@ -58,7 +83,11 @@
                     OnDocumentSelected="OnDocumentSelected" />
 
 @code {
-    private List<Book> _books = [];
+    private enum SortMode { Alphabetical, RecentlyPurchased, RecentlyRead }
+
+    private List<Book> _myLibraryBooks = [];
+    private string _searchTerm = "";
+    private SortMode _sortMode = SortMode.Alphabetical;
     private bool _loading = true;
     private string? _error;
     private string? _readError;
@@ -66,6 +95,40 @@
     private string _selectedBookUid = "";
     private string _selectedBookTitle = "";
     private List<BookDocs> _selectedBookDocs = [];
+
+    private List<Book> _books
+    {
+        get
+        {
+            var filtered = string.IsNullOrWhiteSpace(_searchTerm)
+                ? _myLibraryBooks
+                : _myLibraryBooks.Where(b => (b.Title ?? "").Contains(_searchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            return _sortMode switch
+            {
+                SortMode.RecentlyPurchased => filtered.OrderByDescending(PurchasedAt).ToList(),
+                SortMode.RecentlyRead => filtered
+                    .OrderByDescending(b => LastReadAt(b) ?? DateTime.MinValue)
+                    .ThenBy(b => b.Title, StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+                _ => filtered.OrderBy(b => b.Title, StringComparer.OrdinalIgnoreCase).ToList(),
+            };
+        }
+    }
+
+    private DateTime PurchasedAt(Book book)
+        => AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == book.Uid)?.PurchasedAt ?? DateTime.MinValue;
+
+    private DateTime? LastReadAt(Book book)
+        => AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == book.Uid)?.LastReadAt;
+
+    private void OnSearchInput(ChangeEventArgs e) => _searchTerm = e.Value?.ToString() ?? "";
+
+    private void OnSortChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<SortMode>(e.Value?.ToString(), out var mode))
+            _sortMode = mode;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -93,7 +156,7 @@
 
         if (LibraryCache.TryGetMyLibrary(out var cached))
         {
-            _books = cached;
+            _myLibraryBooks = cached;
             _loading = false;
             return;
         }
@@ -101,8 +164,8 @@
         _loading = true;
         try
         {
-            _books = await AppService.GetMyLibraryBooks();
-            LibraryCache.SetMyLibrary(_books);
+            _myLibraryBooks = await AppService.GetMyLibraryBooks();
+            LibraryCache.SetMyLibrary(_myLibraryBooks);
         }
         catch (ApiUnavailableException ex)
         {
@@ -142,6 +205,15 @@
 
     private void OnDocumentSelected(BookDocs doc)
         => Nav.NavigateTo($"/read/{_selectedBookUid}/{doc.Uid}");
+
+    private bool IsFavorite(string bookUid)
+        => AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == bookUid)?.IsFavorite ?? false;
+
+    private async Task OnFavoriteToggle(string bookUid, bool isFavorite)
+    {
+        await AppService.SetFavorite(bookUid, isFavorite);
+        await AuthState.RefreshProfileAsync();
+    }
 
     public void Dispose()
     {

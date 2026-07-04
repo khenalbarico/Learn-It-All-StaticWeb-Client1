@@ -536,8 +536,43 @@ h1:focus-visible {
         }
 
 .book-card-cover-wrap {
+    position: relative;
     overflow: hidden;
     background-color: var(--color-surface-alt);
+}
+
+.book-card-favorite {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background-color: rgba(20, 16, 12, 0.45);
+    color: #fff;
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    transition: transform var(--duration-fast) var(--ease-spring), background-color var(--duration-base) var(--ease-out);
+}
+
+    .book-card-favorite:hover {
+        transform: scale(1.1);
+    }
+
+    .book-card-favorite.is-favorite {
+        color: var(--color-danger);
+        background-color: rgba(255, 255, 255, 0.85);
+    }
+
+.book-card-meta {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    margin-top: -0.15rem;
 }
 
 .book-card-cover {
@@ -574,6 +609,68 @@ h1:focus-visible {
     font-weight: 700;
     color: var(--color-secondary);
 }
+
+.search-field {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.9rem;
+    margin: 1rem 0;
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    background-color: var(--color-surface);
+    color: var(--color-text-muted);
+    transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+
+    .search-field:focus-within {
+        border-color: var(--color-accent);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 22%, transparent);
+    }
+
+    .search-field input {
+        flex: 1;
+        border: none;
+        outline: none;
+        background: none;
+        color: var(--color-text);
+        font-size: 0.95rem;
+    }
+
+        .search-field input::-webkit-search-cancel-button {
+            cursor: pointer;
+        }
+
+.list-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 1rem 0;
+}
+
+    .list-toolbar .search-field {
+        flex: 1;
+        min-width: 200px;
+        margin: 0;
+    }
+
+.sort-field {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+}
+
+    .sort-field select {
+        padding: 0.5rem 0.8rem;
+        border-radius: var(--radius-pill);
+        border: 1.5px solid var(--color-border);
+        background-color: var(--color-surface);
+        color: var(--color-text);
+    }
 
 .tabs {
     display: flex;
@@ -720,23 +817,43 @@ h1:focus-visible {
     flex: 1;
     width: 100%;
     min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: auto;
     background-color: #525659;
     display: flex;
     justify-content: center;
+    touch-action: pan-x pan-y;
 }
 
     .reader-frame canvas {
         display: block;
+        flex-shrink: 0;
+        margin: auto;
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
     }
 
-.reader-pagenav {
+.reader-pagenav,
+.reader-zoomnav {
     display: flex;
     align-items: center;
     gap: 0.35rem;
 }
+
+.reader-zoomnav {
+    padding-left: 0.5rem;
+    border-left: 1px solid var(--color-border);
+}
+
+.reader-favorite {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0.4rem;
+    border-radius: 50%;
+    color: var(--color-text-muted);
+}
+
+    .reader-favorite.is-favorite {
+        color: var(--color-danger);
+    }
 
 .reader-pagenav-btn {
     min-width: 36px;
@@ -1282,10 +1399,26 @@ code {
     }
 }
 
-.keyword-picker {
-    max-width: 760px;
-    margin: 0 auto;
+.keyword-picker-modal {
+    max-width: 640px;
+    max-height: 90vh;
+    overflow-y: auto;
     text-align: center;
+}
+
+    .keyword-picker-modal .btn-block + .btn-block {
+        margin-top: 0.6rem;
+    }
+
+.keyword-view {
+    animation: fadeInUp var(--duration-slow) var(--ease-out) both;
+}
+
+.modal-book-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.85rem;
+    margin: 1.25rem 0;
+    text-align: left;
 }
 
 .keyword-grid {
@@ -1322,9 +1455,25 @@ code {
     background: var(--color-surface-alt);
 }
 
-.home-recommendations-header {
+.home-section {
+    margin: 2.5rem 0;
+}
+
+.home-section-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin: 2rem 0 1rem 0;
+    gap: 1rem;
+    margin-bottom: 1rem;
 }
+
+    .home-section-header h2 {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+    }
+
+    .home-section-header .icon {
+        color: var(--color-primary-strong);
+    }
