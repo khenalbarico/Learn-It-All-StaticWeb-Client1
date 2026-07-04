@@ -8,7 +8,7 @@
 
 <div class="page-container">
     <AuthGate GuestMessage="Authenticate to access this view.">
-        <div class="centered-notice">
+        <div class="home-hero">
             <img src="imgs/app_logo.png" alt="Learn It All logo" />
             <h1>Welcome@(string.IsNullOrWhiteSpace(AuthState.CurrentUser?.FirstName) ? "" : $", {AuthState.CurrentUser!.FirstName}")!</h1>
         </div>

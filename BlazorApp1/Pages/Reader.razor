@@ -40,6 +40,19 @@
                     }
                 </select>
             }
+
+            @if (!_loading && _error is null && _totalPages > 0)
+            {
+                <div class="reader-pagenav">
+                    <button class="btn btn-ghost btn-sm reader-pagenav-btn" @onclick="PrevPage" disabled="@(_currentPage <= 1)" aria-label="Previous page">
+                        <Icon Name="chevron-left" Size="16" />
+                    </button>
+                    <span class="reader-page-indicator">@_currentPage / @_totalPages</span>
+                    <button class="btn btn-ghost btn-sm reader-pagenav-btn" @onclick="NextPage" disabled="@(_currentPage >= _totalPages)" aria-label="Next page">
+                        <Icon Name="chevron-right" Size="16" />
+                    </button>
+                </div>
+            }
         </div>
 
         <AdUnit SlotId="@AdCfg.ReaderSlotId" CssClass="ad-reader-strip" />
@@ -57,10 +70,7 @@
                 <ErrorBanner Message="@_error" OnRetry="LoadDocumentAsync" />
             </div>
         }
-        else
-        {
-            <iframe class="reader-frame" src="@_blobUrlWithParams" title="@(_currentDoc?.Title ?? "Book reader")"></iframe>
-        }
+        <div class="reader-frame" id="@_containerId" style="@(_loading || _error is not null ? "display:none" : null)"></div>
     </AuthGate>
 </div>
 
@@ -68,13 +78,14 @@
     [Parameter] public string BookUid { get; set; } = "";
     [Parameter] public string DocUid { get; set; } = "";
 
+    private readonly string _containerId = $"pdf-viewer-{Guid.NewGuid():N}";
     private Book? _book;
     private BookDocs? _currentDoc;
     private List<Book> _libraryBooks = [];
     private bool _loading = true;
     private string? _error;
-    private string? _blobUrl;
-    private string? _blobUrlWithParams;
+    private int _currentPage = 1;
+    private int _totalPages;
     private string? _loadedForKey;
 
     protected override async Task OnParametersSetAsync()
@@ -116,14 +127,9 @@
     {
         _loading = true;
         _error = null;
+        _totalPages = 0;
+        _currentPage = 1;
         StateHasChanged();
-
-        if (_blobUrl is not null)
-        {
-            await JsInterop.RevokeBlobUrlAsync(_blobUrl);
-            _blobUrl = null;
-            _blobUrlWithParams = null;
-        }
 
         try
         {
@@ -133,8 +139,11 @@
                 LibraryCache.SetDocument(BookUid, DocUid, bytes);
             }
 
-            _blobUrl = await JsInterop.CreatePdfBlobUrlAsync(bytes);
-            _blobUrlWithParams = $"{_blobUrl}#toolbar=0&navpanes=0";
+            _loading = false;
+            StateHasChanged();
+
+            _totalPages = await JsInterop.LoadPdfAsync(_containerId, bytes);
+            _currentPage = 1;
         }
         catch (ApiUnavailableException ex)
         {
@@ -153,6 +162,17 @@
             _loading = false;
             StateHasChanged();
         }
+    }
+
+    private Task PrevPage() => GoToPage(_currentPage - 1);
+
+    private Task NextPage() => GoToPage(_currentPage + 1);
+
+    private async Task GoToPage(int page)
+    {
+        if (_loading || _error is not null) return;
+        _currentPage = await JsInterop.GoToPdfPageAsync(_containerId, page);
+        StateHasChanged();
     }
 
     private void OnDocumentChanged(ChangeEventArgs e)
@@ -178,9 +198,6 @@
 
     public void Dispose()
     {
-        if (_blobUrl is not null)
-        {
-            _ = JsInterop.RevokeBlobUrlAsync(_blobUrl);
-        }
+        _ = JsInterop.DisposePdfAsync(_containerId);
     }
 }

@@ -34,6 +34,17 @@
     --duration-slow: 480ms;
 
     --glass-bg: rgba(251, 246, 239, 0.72);
+
+    --gradient-primary: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-strong) 100%);
+    --gradient-brand: linear-gradient(120deg, var(--color-primary) 0%, var(--color-primary-strong) 45%, var(--color-secondary) 100%);
+    --gradient-secondary: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-accent) 100%);
+    --gradient-surface: linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 6%, var(--color-surface)) 0%, var(--color-surface) 65%);
+    --gradient-nav: linear-gradient(120deg, color-mix(in srgb, var(--color-primary) 10%, transparent) 0%, transparent 55%);
+    --gradient-mesh:
+        radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--color-primary) 30%, transparent) 0%, transparent 42%),
+        radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--color-secondary) 26%, transparent) 0%, transparent 48%),
+        radial-gradient(circle at 50% 100%, color-mix(in srgb, var(--color-accent) 20%, transparent) 0%, transparent 55%);
+    --gradient-text: linear-gradient(120deg, var(--color-primary-strong) 0%, var(--color-secondary) 100%);
 }
 
 :root[data-theme="dark"] {
