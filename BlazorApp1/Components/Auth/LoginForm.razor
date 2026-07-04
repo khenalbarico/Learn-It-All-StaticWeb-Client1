@@ -21,6 +21,10 @@
         <ValidationMessage For="() => _model.Password" />
     </div>
 
+    <p class="form-hint">
+        <button type="button" class="btn-link" @onclick="() => OnForgotPasswordClick.InvokeAsync()">Forgot password?</button>
+    </p>
+
     @if (!string.IsNullOrEmpty(_error))
     {
         <p class="form-error">@_error</p>
@@ -45,6 +49,7 @@
 
 @code {
     [Parameter] public EventCallback OnRegisterClick { get; set; }
+    [Parameter] public EventCallback OnForgotPasswordClick { get; set; }
 
     private readonly LoginModel _model = new();
     private string? _error;

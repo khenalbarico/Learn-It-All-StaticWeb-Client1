@@ -4,9 +4,11 @@ namespace BlazorApp1.Services.AuthService;
 
 internal static class FirebaseErrorTranslator
 {
-    internal static string Translate(FirebaseAuthException ex)
+    internal static string Translate(FirebaseAuthException ex) => Translate(ex.Message ?? "");
+
+    internal static string Translate(string rawMessage)
     {
-        var msg = ex.Message?.ToUpperInvariant() ?? string.Empty;
+        var msg = rawMessage.ToUpperInvariant();
 
         if (msg.Contains("INVALID_LOGIN_CREDENTIALS") || msg.Contains("WRONG_PASSWORD") || msg.Contains("INVALID_PASSWORD"))
             return "Incorrect email or password. Please try again.";

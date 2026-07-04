@@ -73,6 +73,53 @@ public class AppAuthentication(IFirebaseCfg _cfg, TokenCache _cache) : IAppAuthe
         await SendVerificationEmailInternalAsync();
     }
 
+    public async Task SendPasswordResetEmailAsync(string email)
+    {
+        await PostIdentityToolkitAsync("accounts:sendOobCode", new { requestType = "PASSWORD_RESET", email });
+    }
+
+    public async Task<string> VerifyPasswordResetCodeAsync(string oobCode)
+    {
+        var result = await PostIdentityToolkitAsync<ResetPasswordVerifyResponse>("accounts:resetPassword", new { oobCode });
+        return result.Email;
+    }
+
+    public async Task ResetPasswordAsync(string oobCode, string newPassword)
+    {
+        await PostIdentityToolkitAsync("accounts:resetPassword", new { oobCode, newPassword });
+    }
+
+    public async Task<bool> IsSamePasswordAsync(string email, string password)
+    {
+        var probeClient = _cfg.CreateAuthClient();
+
+        try
+        {
+            await probeClient.SignInWithEmailAndPasswordAsync(email, password);
+            return true;
+        }
+        catch (FirebaseAuthException ex) when (IsAccountBlockingError(ex))
+        {
+            throw new Exception(FirebaseErrorTranslator.Translate(ex));
+        }
+        catch (FirebaseAuthException)
+        {
+            return false;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            throw new ApiUnavailableException("Could not reach Firebase. Please check your internet connection and try again.", ex);
+        }
+    }
+
+    private static bool IsAccountBlockingError(FirebaseAuthException ex)
+    {
+        var msg = ex.Message?.ToUpperInvariant() ?? "";
+        return msg.Contains("TOO_MANY_ATTEMPTS") || msg.Contains("TOO_MANY_REQUESTS") || msg.Contains("USER_DISABLED");
+    }
+
+    private record ResetPasswordVerifyResponse(string Email);
+
     public async Task ChangePasswordAsync(string newPassword)
     {
         var user = _credential?.User ?? _client.User;
@@ -136,18 +183,51 @@ public class AppAuthentication(IFirebaseCfg _cfg, TokenCache _cache) : IAppAuthe
     }
 
     private async Task PostIdentityToolkitAsync(string endpoint, object body)
+        => await SendIdentityToolkitRequestAsync(endpoint, body);
+
+    private async Task<T> PostIdentityToolkitAsync<T>(string endpoint, object body)
     {
+        var content = await SendIdentityToolkitRequestAsync(endpoint, body);
+        return JsonSerializer.Deserialize<T>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
+
+    private async Task<string> SendIdentityToolkitRequestAsync(string endpoint, object body)
+    {
+        HttpResponseMessage response;
+
         try
         {
             var json = JsonSerializer.Serialize(body);
-            using var response = await _httpClient.PostAsync(
+            response = await _httpClient.PostAsync(
                 $"https://identitytoolkit.googleapis.com/v1/{endpoint}?key={_cfg.ApiKey}",
                 new StringContent(json, Encoding.UTF8, "application/json"));
-            response.EnsureSuccessStatusCode();
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             throw new ApiUnavailableException("Could not reach Firebase. Please check your internet connection and try again.", ex);
+        }
+
+        using (response)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                throw new Exception(FirebaseErrorTranslator.Translate(ExtractFirebaseErrorCode(content)));
+
+            return content;
+        }
+    }
+
+    private static string ExtractFirebaseErrorCode(string errorBody)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(errorBody);
+            return doc.RootElement.GetProperty("error").GetProperty("message").GetString() ?? "";
+        }
+        catch (Exception)
+        {
+            return "";
         }
     }
 

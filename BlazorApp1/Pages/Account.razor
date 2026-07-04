@@ -216,6 +216,13 @@
 
         try
         {
+            if (await Auth.IsSamePasswordAsync(AuthState.CurrentUser?.Email ?? "", _passwordModel.NewPassword))
+            {
+                _passwordMessage = "New password must be different from your current password.";
+                _passwordSuccess = false;
+                return;
+            }
+
             await Auth.ChangePasswordAsync(_passwordModel.NewPassword);
             _passwordMessage = "Password updated.";
             _passwordSuccess = true;

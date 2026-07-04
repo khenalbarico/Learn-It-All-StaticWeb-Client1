@@ -8,11 +8,15 @@
     @switch (_view)
     {
         case AuthView.Login:
-            <LoginForm OnRegisterClick="() => _view = AuthView.Register" />
+            <LoginForm OnRegisterClick="() => _view = AuthView.Register"
+                       OnForgotPasswordClick="() => _view = AuthView.ForgotPassword" />
             break;
         case AuthView.Register:
             <RegisterForm OnLoginClick="() => _view = AuthView.Login"
                           OnRegistered="OnRegistered" />
+            break;
+        case AuthView.ForgotPassword:
+            <ForgotPasswordForm OnBackToLogin="() => _view = AuthView.Login" />
             break;
         case AuthView.CollectProfile:
             <ProfileCollectionForm OnProfileSaved="() => _view = AuthView.VerifyEmail" />
@@ -24,7 +28,7 @@
 </div>
 
 @code {
-    private enum AuthView { Login, Register, CollectProfile, VerifyEmail }
+    private enum AuthView { Login, Register, CollectProfile, VerifyEmail, ForgotPassword }
 
     private AuthView _view = AuthView.Login;
 
