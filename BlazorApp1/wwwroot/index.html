@@ -52,8 +52,18 @@
         // (see service-worker.published.js). Reload once when that handoff happens so
         // this tab picks up the matching new assets instead of continuing to run the
         // previous version's in-memory app against a service worker for a newer one.
+        //
+        // clients.claim() also fires 'controllerchange' the first time ANY worker takes
+        // control of a page that had no controller yet (i.e. every normal first visit) -
+        // that case must NOT reload, since nothing is stale, only an actual replacement
+        // of a worker that was already controlling this page indicates a real update.
+        let hadControllerAtLoad = !!navigator.serviceWorker.controller;
         let refreshingAfterControllerChange = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!hadControllerAtLoad) {
+                hadControllerAtLoad = true;
+                return;
+            }
             if (refreshingAfterControllerChange) return;
             refreshingAfterControllerChange = true;
             window.location.reload();

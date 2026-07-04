@@ -42,21 +42,21 @@
                     <div class="form-field">
                         <label for="acc-first">First name</label>
                         <InputText id="acc-first" autocomplete="given-name"
-                                   @bind-Value="_profileModel.FirstName" @bind-Value:event="oninput" />
+                                   @bind-Value="_profileModel.FirstName" />
                         <ValidationMessage For="() => _profileModel.FirstName" />
                     </div>
 
                     <div class="form-field">
                         <label for="acc-last">Last name</label>
                         <InputText id="acc-last" autocomplete="family-name"
-                                   @bind-Value="_profileModel.LastName" @bind-Value:event="oninput" />
+                                   @bind-Value="_profileModel.LastName" />
                         <ValidationMessage For="() => _profileModel.LastName" />
                     </div>
 
                     <div class="form-field">
                         <label for="acc-phone">Phone number</label>
                         <InputText id="acc-phone" autocomplete="tel"
-                                   @bind-Value="_profileModel.PhoneNumber" @bind-Value:event="oninput" />
+                                   @bind-Value="_profileModel.PhoneNumber" />
                         <ValidationMessage For="() => _profileModel.PhoneNumber" />
                     </div>
 
@@ -88,7 +88,7 @@
                     <div class="form-field">
                         <label for="acc-newpass">New password</label>
                         <InputText id="acc-newpass" type="password" autocomplete="new-password"
-                                   @bind-Value="_passwordModel.NewPassword" @bind-Value:event="oninput" />
+                                   @bind-Value="_passwordModel.NewPassword" />
                         <ValidationMessage For="() => _passwordModel.NewPassword" />
                     </div>
 

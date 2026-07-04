@@ -17,7 +17,7 @@
     <div class="form-field">
         <label for="reg-password">Password</label>
         <InputText id="reg-password" type="password" autocomplete="new-password"
-                   @bind-Value="_model.Password" @bind-Value:event="oninput" />
+                   @bind-Value="_model.Password" />
         <ValidationMessage For="() => _model.Password" />
     </div>
 
