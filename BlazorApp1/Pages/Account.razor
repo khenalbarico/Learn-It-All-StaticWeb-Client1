@@ -76,6 +76,13 @@
                 <DataAnnotationsValidator />
 
                 <div class="form-field">
+                    <label for="acc-currentpass">Current password</label>
+                    <InputText id="acc-currentpass" type="password" autocomplete="current-password"
+                               @bind-Value="_passwordModel.CurrentPassword" />
+                    <ValidationMessage For="() => _passwordModel.CurrentPassword" />
+                </div>
+
+                <div class="form-field">
                     <label for="acc-newpass">New password</label>
                     <InputText id="acc-newpass" type="password" autocomplete="new-password"
                                @bind-Value="_passwordModel.NewPassword" />
@@ -205,7 +212,16 @@
 
         try
         {
-            if (await Auth.IsSamePasswordAsync(AuthState.CurrentUser?.Email ?? "", _passwordModel.NewPassword))
+            var email = AuthState.CurrentUser?.Email ?? "";
+
+            if (!await Auth.IsSamePasswordAsync(email, _passwordModel.CurrentPassword))
+            {
+                _passwordMessage = "Current password is incorrect.";
+                _passwordSuccess = false;
+                return;
+            }
+
+            if (_passwordModel.NewPassword == _passwordModel.CurrentPassword)
             {
                 _passwordMessage = "New password must be different from your current password.";
                 _passwordSuccess = false;
@@ -216,6 +232,7 @@
             _ = AppService.LogActivity("Password changed");
             _passwordMessage = "Password updated.";
             _passwordSuccess = true;
+            _passwordModel.CurrentPassword = "";
             _passwordModel.NewPassword = "";
             _passwordModel.ConfirmPassword = "";
         }
@@ -255,6 +272,9 @@
 
     private class PasswordModel
     {
+        [Required(ErrorMessage = "Please enter your current password.")]
+        public string CurrentPassword { get; set; } = "";
+
         [Required(ErrorMessage = "Please enter a new password.")]
         [StrongPassword]
         public string NewPassword { get; set; } = "";
