@@ -620,6 +620,8 @@ h1:focus-visible {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     margin-top: 0.4rem;
 }
 
@@ -1378,9 +1380,23 @@ code {
     }
 
     .book-grid {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: 0.85rem;
     }
+
+    .book-card-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .book-card-actions {
+        justify-content: space-between;
+        width: 100%;
+    }
+
+        .book-card-actions .btn-primary {
+            flex: 1 1 auto;
+        }
 }
 
 @media (max-width: 420px) {
@@ -1511,8 +1527,29 @@ code {
 .book-card-actions {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 0.4rem;
+    flex: 1 1 auto;
+    min-width: 0;
 }
+
+    .book-card-actions .btn {
+        min-height: 36px;
+        padding: 0.4rem 0.9rem;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    .book-card-actions .btn-primary {
+        flex-shrink: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .book-card-actions .btn-icon {
+        flex-shrink: 0;
+    }
 
 .nav-cart-btn {
     position: relative;
