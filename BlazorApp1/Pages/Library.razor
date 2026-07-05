@@ -56,6 +56,7 @@
                               Price="@book.Price"
                               ShowPrice="@(!IsOwned(book.Uid))"
                               ActionLabel="@(IsOwned(book.Uid) ? "Owned" : "Buy")"
+                              ShowActionButton="@(!IsOwned(book.Uid))"
                               OnActionClick="() => OnBuyClick(book)" />
                 </div>
             }
@@ -70,7 +71,8 @@
               BookTitle="@_purchasingBookTitle"
               BookDescription="@_purchasingBookDescription"
               BookCoverUrl="@_purchasingBookCoverUrl"
-              BookPrice="@_purchasingBookPrice" />
+              BookPrice="@_purchasingBookPrice"
+              OnPurchased="OnBookPurchased" />
 
 @code {
     private readonly List<(string Value, string Label)> _categories =
@@ -211,6 +213,8 @@
 
     private bool IsOwned(string bookUid)
         => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Library.Any(l => l.Uid == bookUid) == true;
+
+    private async Task OnBookPurchased() => await AuthState.RefreshProfileAsync();
 
     private static BookCardData ToCardData(Book book) => new(book.Uid, book.Title ?? "Untitled", book.ImageCoverUrl, book.Price, book.Description);
 

@@ -24,6 +24,11 @@
                     <div class="spinner"></div>
                     <p class="form-hint">Generating your QR code...</p>
                 }
+                else if (_stage == Stage.Verifying)
+                {
+                    <div class="spinner"></div>
+                    <p class="form-hint">Confirming your payment...</p>
+                }
                 else if (_stage == Stage.Error)
                 {
                     <ErrorBanner Message="@_error" />
@@ -78,7 +83,7 @@
 }
 
 @code {
-    private enum Stage { Details, Loading, AwaitingPayment, Succeeded, Failed, Expired, Error }
+    private enum Stage { Details, Loading, AwaitingPayment, Verifying, Succeeded, Failed, Expired, Error }
 
     [Parameter] public bool IsOpen { get; set; }
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
@@ -96,7 +101,6 @@
     private DateTime _expiresAtUtc;
     private string? _error;
     private int _cooldownSeconds;
-    private bool _finalVerifyDone;
     private CancellationTokenSource? _cts;
     private readonly SubmitGuard _guard = new();
 
@@ -118,7 +122,6 @@
         _cts = new CancellationTokenSource();
         _stage = Stage.Loading;
         _error = null;
-        _finalVerifyDone = false;
         StateHasChanged();
 
         try
@@ -164,14 +167,11 @@
             {
                 await Task.Delay(TimeSpan.FromSeconds(4), token);
                 if (token.IsCancellationRequested) return;
-
-                var remaining = _expiresAtUtc - DateTime.UtcNow;
-                var forceVerify = !_finalVerifyDone && remaining <= TimeSpan.FromSeconds(5);
-                if (forceVerify) _finalVerifyDone = true;
+                if (_stage != Stage.AwaitingPayment) return;
 
                 try
                 {
-                    var status = await PaymentService.GetPaymentStatus(_paymentIntentId!, forceVerify);
+                    var status = await PaymentService.GetPaymentStatus(_paymentIntentId!, forceVerify: false);
                     ApplyStatus(status);
                 }
                 catch (Exception)
@@ -194,9 +194,7 @@
             {
                 if (DateTime.UtcNow >= _expiresAtUtc)
                 {
-                    _stage = Stage.Expired;
-                    StartCooldown();
-                    StateHasChanged();
+                    await FinalizeExpiryAsync(token);
                     return;
                 }
 
@@ -209,23 +207,81 @@
         }
     }
 
+    // Local clock hitting zero doesn't mean the payment truly missed the window: the bank/QR
+    // Ph rail may have completed the transfer a moment before expiry, with confirmation still
+    // in flight. Do one authoritative check against PayMongo, then give the server's webhook a
+    // short cheap grace window to land before telling the user the payment was lost.
+    private async Task FinalizeExpiryAsync(CancellationToken token)
+    {
+        _stage = Stage.Verifying;
+        StateHasChanged();
+
+        try
+        {
+            var status = await PaymentService.GetPaymentStatus(_paymentIntentId!, forceVerify: true);
+            ApplyStatus(status);
+        }
+        catch (Exception)
+        {
+            _stage = Stage.Expired;
+            StartCooldown();
+        }
+
+        if (_stage == Stage.Expired)
+        {
+            await GracePollAsync(token);
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task GracePollAsync(CancellationToken token)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(24);
+
+        try
+        {
+            while (!token.IsCancellationRequested && _stage == Stage.Expired && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(4), token);
+                if (token.IsCancellationRequested || _stage != Stage.Expired) return;
+
+                try
+                {
+                    var status = await PaymentService.GetPaymentStatus(_paymentIntentId!, forceVerify: false);
+                    ApplyStatus(status);
+                }
+                catch (Exception)
+                {
+                }
+
+                StateHasChanged();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
     private void ApplyStatus(PaymentStatusResult status)
     {
+        var previousStage = _stage;
+
         _stage = status.Status switch
         {
             "Succeeded" => Stage.Succeeded,
             "Failed" => Stage.Failed,
             "Expired" => Stage.Expired,
-            _ => Stage.AwaitingPayment
+            _ => previousStage == Stage.Verifying ? Stage.Expired : previousStage
         };
 
-        if (_stage == Stage.Succeeded)
+        if (_stage == Stage.Succeeded && previousStage != Stage.Succeeded)
         {
             LibraryCache.InvalidateMyLibrary();
             _ = OnPurchased.InvokeAsync();
         }
 
-        if (_stage is Stage.Expired or Stage.Failed)
+        if (_stage is Stage.Expired or Stage.Failed && previousStage != _stage)
         {
             StartCooldown();
         }
@@ -256,7 +312,7 @@
 
     private async Task CloseIfAllowed()
     {
-        if (_stage is Stage.AwaitingPayment or Stage.Loading) return;
+        if (_stage is Stage.AwaitingPayment or Stage.Loading or Stage.Verifying) return;
         await Close();
     }
 

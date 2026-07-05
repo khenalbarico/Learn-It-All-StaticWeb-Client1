@@ -27,7 +27,10 @@
                 {
                     <span class="badge">Owned</span>
                 }
-                <button class="btn btn-primary" @onclick="() => OnActionClick.InvokeAsync()" @onclick:stopPropagation="true">@ActionLabel</button>
+                @if (ShowActionButton)
+                {
+                    <button class="btn btn-primary" @onclick="() => OnActionClick.InvokeAsync()" @onclick:stopPropagation="true">@ActionLabel</button>
+                }
             </div>
         }
     </div>
@@ -41,6 +44,7 @@
     [Parameter] public bool ShowPrice { get; set; } = true;
     [Parameter] public bool ShowFooter { get; set; } = true;
     [Parameter] public string ActionLabel { get; set; } = "Buy";
+    [Parameter] public bool ShowActionButton { get; set; } = true;
     [Parameter] public EventCallback OnActionClick { get; set; }
     [Parameter] public bool ShowFavoriteToggle { get; set; }
     [Parameter] public bool IsFavorite { get; set; }
