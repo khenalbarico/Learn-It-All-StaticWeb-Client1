@@ -12,4 +12,5 @@ public class UserInfo
     public UserSubscription Subscription { get; set; } = UserSubscription.Free;
     public List<string> Keywords { get; set; } = [];
     public List<UserLibrary> Library { get; set; } = [];
+    public List<CartItem> Cart { get; set; } = [];
 }

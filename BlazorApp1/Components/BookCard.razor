@@ -27,10 +27,20 @@
                 {
                     <span class="badge">Owned</span>
                 }
-                @if (ShowActionButton)
-                {
-                    <button class="btn btn-primary" @onclick="() => OnActionClick.InvokeAsync()" @onclick:stopPropagation="true">@ActionLabel</button>
-                }
+                <div class="book-card-actions">
+                    @if (ShowAddToCartButton)
+                    {
+                        <button class="btn btn-ghost btn-icon @(IsInCart ? "is-in-cart" : "")" disabled="@IsInCart"
+                                @onclick="() => OnAddToCart.InvokeAsync()" @onclick:stopPropagation="true"
+                                title="@(IsInCart ? "In cart" : "Add to cart")" aria-label="@(IsInCart ? "In cart" : "Add to cart")">
+                            <Icon Name="@(IsInCart ? "check" : "cart")" Size="16" />
+                        </button>
+                    }
+                    @if (ShowActionButton)
+                    {
+                        <button class="btn btn-primary" @onclick="() => OnActionClick.InvokeAsync()" @onclick:stopPropagation="true">@ActionLabel</button>
+                    }
+                </div>
             </div>
         }
     </div>
@@ -46,6 +56,9 @@
     [Parameter] public string ActionLabel { get; set; } = "Buy";
     [Parameter] public bool ShowActionButton { get; set; } = true;
     [Parameter] public EventCallback OnActionClick { get; set; }
+    [Parameter] public bool ShowAddToCartButton { get; set; }
+    [Parameter] public bool IsInCart { get; set; }
+    [Parameter] public EventCallback OnAddToCart { get; set; }
     [Parameter] public bool ShowFavoriteToggle { get; set; }
     [Parameter] public bool IsFavorite { get; set; }
     [Parameter] public EventCallback<bool> OnFavoriteToggle { get; set; }

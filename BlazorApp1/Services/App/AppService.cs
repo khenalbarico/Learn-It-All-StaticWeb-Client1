@@ -76,4 +76,28 @@ public class AppService(IApiClient _api) : IAppService
 
     public Task SetFavorite(string bookUid, bool isFavorite)
         => _api.SubmitAsync(ApiFunctions.SetFavorite, new { BookUid = bookUid, IsFavorite = isFavorite });
+
+    public async Task AddToCart(string bookUid)
+    {
+        try
+        {
+            await _api.SubmitAsync(ApiFunctions.AddToCart, new { BookUid = bookUid });
+        }
+        catch (Exception)
+        {
+            // best-effort; the optimistic local cart update already reflected the action
+        }
+    }
+
+    public async Task RemoveFromCart(string bookUid)
+    {
+        try
+        {
+            await _api.SubmitAsync(ApiFunctions.RemoveFromCart, new { BookUid = bookUid });
+        }
+        catch (Exception)
+        {
+            // best-effort; the optimistic local cart update already reflected the action
+        }
+    }
 }

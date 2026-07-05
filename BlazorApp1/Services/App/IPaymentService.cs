@@ -4,6 +4,6 @@ namespace BlazorApp1.Services.App;
 
 public interface IPaymentService
 {
-    Task<CreatePaymentResult> CreatePaymentIntent(string bookUid);
+    Task<CreatePaymentResult> CreatePaymentIntent(List<string> bookUids);
     Task<PaymentStatusResult> GetPaymentStatus(string paymentIntentId, bool forceVerify = false);
 }

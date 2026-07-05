@@ -14,5 +14,7 @@ public enum ApiFunctions
     LogActivity,
     UpdateUserKeywords,
     SaveReadingProgress,
-    SetFavorite
+    SetFavorite,
+    AddToCart,
+    RemoveFromCart
 }

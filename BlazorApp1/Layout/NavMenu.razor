@@ -25,6 +25,13 @@
                 <ThemeToggle />
                 @if (AuthState.IsAuthenticated)
                 {
+                    <button class="btn btn-ghost nav-cart-btn" @onclick="OpenCart" aria-label="View cart" title="Cart">
+                        <Icon Name="cart" Size="20" />
+                        @if (CartCount > 0)
+                        {
+                            <span class="cart-badge">@CartCount</span>
+                        }
+                    </button>
                     <button class="btn btn-secondary" @onclick="SignOut" disabled="@_guard.IsBusy">
                         <Icon Name="logout" Size="16" />
                         Log Out@(string.IsNullOrWhiteSpace(AuthState.CurrentUser?.FirstName) ? "" : $" ({AuthState.CurrentUser!.FirstName})")
@@ -42,9 +49,14 @@
     </div>
 </nav>
 
+<CartDrawer @bind-IsOpen="_cartOpen" />
+
 @code {
     private bool _menuOpen;
+    private bool _cartOpen;
     private readonly SubmitGuard _guard = new();
+
+    private int CartCount => AuthState.CurrentUser?.Cart.Count ?? 0;
 
     protected override void OnInitialized()
     {
@@ -54,6 +66,12 @@
     private void ToggleMenu() => _menuOpen = !_menuOpen;
 
     private void CloseMenu() => _menuOpen = false;
+
+    private void OpenCart()
+    {
+        CloseMenu();
+        _cartOpen = true;
+    }
 
     private void GoToAuth()
     {

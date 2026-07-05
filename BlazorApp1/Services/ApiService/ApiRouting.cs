@@ -19,5 +19,7 @@ public class ApiRouting
         [ApiFunctions.UpdateUserKeywords]   = "UpdateUserKeywords",
         [ApiFunctions.SaveReadingProgress]  = "SaveReadingProgress",
         [ApiFunctions.SetFavorite]          = "SetFavorite",
+        [ApiFunctions.AddToCart]            = "AddToCart",
+        [ApiFunctions.RemoveFromCart]       = "RemoveFromCart",
     };
 }

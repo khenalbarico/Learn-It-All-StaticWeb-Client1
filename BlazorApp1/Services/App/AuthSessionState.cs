@@ -73,6 +73,22 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
         OnChange?.Invoke();
     }
 
+    public void AddToCartLocal(string bookUid)
+    {
+        if (CurrentUser is null) return;
+        if (CurrentUser.Cart.Any(c => c.BookUid == bookUid)) return;
+
+        CurrentUser.Cart.Add(new CartItem { BookUid = bookUid, AddedAt = DateTime.UtcNow });
+        OnChange?.Invoke();
+    }
+
+    public void RemoveFromCartLocal(string bookUid)
+    {
+        if (CurrentUser is null) return;
+        if (CurrentUser.Cart.RemoveAll(c => c.BookUid == bookUid) > 0)
+            OnChange?.Invoke();
+    }
+
     public async Task<AuthResult> SignInAsync(string email, string password)
     {
         var result = await _auth.SignInWithEmailAsync(email, password);

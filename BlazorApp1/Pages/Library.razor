@@ -57,7 +57,10 @@
                               ShowPrice="@(!IsOwned(book.Uid))"
                               ActionLabel="@(IsOwned(book.Uid) ? "Owned" : "Buy")"
                               ShowActionButton="@(!IsOwned(book.Uid))"
-                              OnActionClick="() => OnBuyClick(book)" />
+                              OnActionClick="() => OnBuyClick(book)"
+                              ShowAddToCartButton="@(AuthState.IsAuthenticated && !IsOwned(book.Uid))"
+                              IsInCart="@IsInCart(book.Uid)"
+                              OnAddToCart="() => OnAddToCart(book)" />
                 </div>
             }
         </div>
@@ -67,11 +70,7 @@
 <ComingSoonModal @bind-IsOpen="_comingSoonOpen" />
 
 <BuyBookModal @bind-IsOpen="_paymentModalOpen"
-              BookUid="@_purchasingBookUid"
-              BookTitle="@_purchasingBookTitle"
-              BookDescription="@_purchasingBookDescription"
-              BookCoverUrl="@_purchasingBookCoverUrl"
-              BookPrice="@_purchasingBookPrice"
+              Items="_checkoutItems"
               OnPurchased="OnBookPurchased" />
 
 @code {
@@ -92,11 +91,7 @@
     private string? _error;
     private bool _comingSoonOpen;
     private bool _paymentModalOpen;
-    private string _purchasingBookUid = "";
-    private string _purchasingBookTitle = "";
-    private string? _purchasingBookDescription;
-    private string? _purchasingBookCoverUrl;
-    private decimal _purchasingBookPrice;
+    private List<CheckoutItem> _checkoutItems = [];
     private List<DummyBook>? _dummyCatalog;
 
     private List<BookCardData> _books => string.IsNullOrWhiteSpace(_searchTerm)
@@ -198,11 +193,7 @@
 
         if (AuthState.IsAuthenticated && !string.IsNullOrEmpty(book.Uid))
         {
-            _purchasingBookUid = book.Uid;
-            _purchasingBookTitle = book.Title;
-            _purchasingBookDescription = book.Description;
-            _purchasingBookCoverUrl = book.CoverImageUrl;
-            _purchasingBookPrice = book.Price;
+            _checkoutItems = [new CheckoutItem(book.Uid, book.Title, book.CoverImageUrl, book.Price, book.Description)];
             _paymentModalOpen = true;
         }
         else
@@ -213,6 +204,16 @@
 
     private bool IsOwned(string bookUid)
         => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Library.Any(l => l.Uid == bookUid) == true;
+
+    private bool IsInCart(string bookUid)
+        => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Cart.Any(c => c.BookUid == bookUid) == true;
+
+    private async Task OnAddToCart(BookCardData book)
+    {
+        if (string.IsNullOrEmpty(book.Uid) || IsOwned(book.Uid) || IsInCart(book.Uid)) return;
+        AuthState.AddToCartLocal(book.Uid);
+        await AppService.AddToCart(book.Uid);
+    }
 
     private async Task OnBookPurchased() => await AuthState.RefreshProfileAsync();
 
