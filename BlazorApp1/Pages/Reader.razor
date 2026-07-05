@@ -175,9 +175,10 @@
             _totalPages = await JsInterop.LoadPdfAsync(_containerId, bytes);
             _currentPage = 1;
 
-            if (_libraryEntry is { LastReadDocUid: not null } entry && entry.LastReadDocUid == DocUid && entry.LastReadPage > 1)
+            var savedProgress = _libraryEntry?.DocumentsProgress.FirstOrDefault(d => d.DocUid == DocUid);
+            if (savedProgress is not null && savedProgress.Page > 1)
             {
-                _currentPage = await JsInterop.GoToPdfPageAsync(_containerId, Math.Min(entry.LastReadPage, _totalPages));
+                _currentPage = await JsInterop.GoToPdfPageAsync(_containerId, Math.Min(savedProgress.Page, _totalPages));
             }
         }
         catch (ApiUnavailableException ex)

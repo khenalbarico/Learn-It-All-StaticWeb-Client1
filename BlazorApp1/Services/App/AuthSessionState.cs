@@ -53,10 +53,23 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
         var entry = CurrentUser?.Library.FirstOrDefault(l => l.Uid == bookUid);
         if (entry is null) return;
 
+        var now = DateTime.UtcNow;
+
+        var docProgress = entry.DocumentsProgress.FirstOrDefault(d => d.DocUid == docUid);
+        if (docProgress is null)
+        {
+            docProgress = new DocumentProgress { DocUid = docUid };
+            entry.DocumentsProgress.Add(docProgress);
+        }
+
+        docProgress.Page = page;
+        docProgress.TotalPages = totalPages;
+        docProgress.LastReadAt = now;
+
         entry.LastReadDocUid = docUid;
         entry.LastReadPage = page;
         entry.LastReadTotalPages = totalPages;
-        entry.LastReadAt = DateTime.UtcNow;
+        entry.LastReadAt = now;
         OnChange?.Invoke();
     }
 
