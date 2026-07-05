@@ -230,6 +230,13 @@ export function disposePdf(containerId) {
     }
 }
 
+export function preloadImages(urls) {
+    for (const url of urls) {
+        const img = new Image();
+        img.src = url;
+    }
+}
+
 export function pushAdsbygoogle() {
     // Blazor has just inserted the <ins> into the DOM, but under load (e.g. during
     // WASM boot) the browser may not have finished a layout pass yet, so its width

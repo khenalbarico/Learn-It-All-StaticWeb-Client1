@@ -63,6 +63,12 @@ public class JsInteropService(IJSRuntime _jsRuntime)
         await module.InvokeVoidAsync("disposePdf", containerId);
     }
 
+    public async Task PreloadImagesAsync(IEnumerable<string> urls)
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("preloadImages", urls);
+    }
+
     public async Task PushAdsbygoogleAsync()
     {
         var module = await GetModuleAsync();

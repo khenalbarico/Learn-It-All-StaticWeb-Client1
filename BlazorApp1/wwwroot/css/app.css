@@ -81,6 +81,12 @@ main {
     color: var(--color-text-muted);
 }
 
+.footer-version {
+    color: var(--color-text-muted);
+    opacity: 0.6;
+    font-size: 0.75rem;
+}
+
 h1, h2, h3, h4 {
     font-family: var(--font-heading);
     color: var(--color-text);

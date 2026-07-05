@@ -3,6 +3,7 @@
 @inject AuthSessionState AuthState
 @inject IAppService AppService
 @inject LibraryCacheService LibraryCache
+@inject JsInteropService JsInterop
 @inject NavigationManager Nav
 
 <PageTitle>Learn It All</PageTitle>
@@ -173,7 +174,22 @@
     protected override async Task OnInitializedAsync()
     {
         AuthState.OnChange += OnAuthChanged;
+        _ = PreloadKeywordIconsAsync();
         await LoadAsync();
+    }
+
+    private async Task PreloadKeywordIconsAsync()
+    {
+        if (!LibraryCache.TryMarkKeywordIconsPreloaded()) return;
+
+        try
+        {
+            var urls = BookKeywords.All.Select(k => $"imgs/keywords/{k.IconFile}");
+            await JsInterop.PreloadImagesAsync(urls);
+        }
+        catch (Exception)
+        {
+        }
     }
 
     private async void OnAuthChanged()
@@ -184,7 +200,14 @@
 
     private async Task LoadAsync()
     {
-        if (AuthState.IsInitializing || !AuthState.IsAuthenticated) return;
+        if (AuthState.IsInitializing) return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Nav.NavigateTo("/library");
+            return;
+        }
+
         if (AuthState.CurrentUser is null) return;
 
         await LoadLibrarySectionsAsync();
