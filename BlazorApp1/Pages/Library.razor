@@ -67,7 +67,7 @@
     }
 </div>
 
-<ComingSoonModal @bind-IsOpen="_comingSoonOpen" />
+<AuthRequiredModal @bind-IsOpen="_authRequiredOpen" />
 
 <BuyBookModal @bind-IsOpen="_paymentModalOpen"
               Items="_checkoutItems"
@@ -89,7 +89,7 @@
     private string _searchTerm = "";
     private bool _loading;
     private string? _error;
-    private bool _comingSoonOpen;
+    private bool _authRequiredOpen;
     private bool _paymentModalOpen;
     private List<CheckoutItem> _checkoutItems = [];
     private List<DummyBook>? _dummyCatalog;
@@ -198,7 +198,7 @@
         }
         else
         {
-            _comingSoonOpen = true;
+            _authRequiredOpen = true;
         }
     }
 
