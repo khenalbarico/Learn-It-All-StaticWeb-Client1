@@ -9,6 +9,7 @@ public class Book
     public string? Title { get; set; }
     public string? Description { get; set; }
     public decimal Price { get; set; }
+    public decimal? PremiumPrice { get; set; }
     public string? ImageCoverUrl { get; set; }
     public List<string> Keywords { get; set; } = [];
     public List<BookDocs> Documents { get; set; } = [];

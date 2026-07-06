@@ -6,6 +6,7 @@ public class UserLibrary
     public string?                OrderId            { get; set; }
     public decimal                PriceAtPurchased   { get; set; }
     public DateTime               PurchasedAt        { get; set; }
+    public bool                   IsPremium          { get; set; }
     public bool                   IsFavorite         { get; set; }
     public List<DocumentProgress> DocumentsProgress  { get; set; } = [];
     public string?                LastReadDocUid     { get; set; }

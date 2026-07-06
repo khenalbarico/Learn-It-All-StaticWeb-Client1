@@ -16,7 +16,26 @@
                     {
                         <p class="form-hint book-detail-desc">@Items[0].Description</p>
                     }
-                    <div class="book-detail-price">₱@Items[0].Price.ToString("N2")</div>
+                    @if (Items[0].IsUpgrade)
+                    {
+                        <span class="badge badge-premium">★ Premium Upgrade</span>
+                        <p class="form-hint">Unlocks the premium inclusions of this book. You pay only the difference.</p>
+                    }
+                    else if (Items[0].PremiumPrice is decimal premiumPrice)
+                    {
+                        <div class="tier-options">
+                            <button class="tier-option @(!_premiumSelected ? "selected" : "")" @onclick="() => _premiumSelected = false">
+                                <span class="tier-option-name">Regular</span>
+                                <span class="tier-option-price">₱@Items[0].Price.ToString("N2")</span>
+                            </button>
+                            <button class="tier-option tier-option-premium @(_premiumSelected ? "selected" : "")" @onclick="() => _premiumSelected = true">
+                                <span class="tier-option-name">★ Premium</span>
+                                <span class="tier-option-price">₱@premiumPrice.ToString("N2")</span>
+                                <span class="tier-option-hint">Includes bonus content</span>
+                            </button>
+                        </div>
+                    }
+                    <div class="book-detail-price">₱@TotalPrice.ToString("N2")</div>
                 }
                 else
                 {
@@ -27,7 +46,7 @@
                             <div class="checkout-item">
                                 <img class="checkout-item-cover" src="@ResolveCover(item.CoverUrl)" alt="@item.Title cover" />
                                 <span class="checkout-item-title">@item.Title</span>
-                                <span class="checkout-item-price">₱@item.Price.ToString("N2")</span>
+                                <span class="checkout-item-price">₱@item.EffectivePrice.ToString("N2")</span>
                             </div>
                         }
                     </div>
@@ -126,7 +145,22 @@
     private CancellationTokenSource? _cts;
     private readonly SubmitGuard _guard = new();
 
-    private decimal TotalPrice => Items.Sum(i => i.Price);
+    private bool _premiumSelected;
+
+    private decimal TotalPrice => Items.Count == 1
+        ? ItemPrice(Items[0])
+        : Items.Sum(i => i.EffectivePrice);
+
+    private decimal ItemPrice(CheckoutItem item)
+    {
+        if (item.IsUpgrade || item.IsPremium) return item.EffectivePrice;
+        return _premiumSelected && item.PremiumPrice is decimal premium ? premium : item.Price;
+    }
+
+    private List<string> PremiumUids => Items
+        .Where(i => i.IsPremium || (Items.Count == 1 && _premiumSelected && i.PremiumPrice is not null))
+        .Select(i => i.BookUid)
+        .ToList();
 
     private string HeaderText => Items.Count == 1 ? Items[0].Title : $"{Items.Count} books";
 
@@ -145,6 +179,7 @@
             _startedForKey = ItemsKey;
             _stage = Stage.Details;
             _error = null;
+            _premiumSelected = Items.Count == 1 && Items[0].IsPremium;
         }
     }
 
@@ -158,7 +193,7 @@
 
         try
         {
-            var result = await PaymentService.CreatePaymentIntent(Items.Select(i => i.BookUid).ToList());
+            var result = await PaymentService.CreatePaymentIntent(Items.Select(i => i.BookUid).ToList(), PremiumUids);
             _paymentIntentId = result.PaymentIntentId;
             _qrImageUrl = result.QrImageUrl;
             _expiresAtUtc = result.ExpiresAt;

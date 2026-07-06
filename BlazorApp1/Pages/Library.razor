@@ -54,6 +54,8 @@
                     <BookCard Title="@book.Title"
                               CoverImageUrl="@book.CoverImageUrl"
                               Price="@book.Price"
+                              PremiumPrice="@book.PremiumPrice"
+                              IsPremiumOwned="@IsPremiumOwned(book.Uid)"
                               ShowPrice="@(!IsOwned(book.Uid))"
                               ActionLabel="@(IsOwned(book.Uid) ? "Owned" : "Buy")"
                               ShowActionButton="@(!IsOwned(book.Uid))"
@@ -193,7 +195,7 @@
 
         if (AuthState.IsAuthenticated && !string.IsNullOrEmpty(book.Uid))
         {
-            _checkoutItems = [new CheckoutItem(book.Uid, book.Title, book.CoverImageUrl, book.Price, book.Description)];
+            _checkoutItems = [new CheckoutItem(book.Uid, book.Title, book.CoverImageUrl, book.Price, book.Description, book.PremiumPrice)];
             _paymentModalOpen = true;
         }
         else
@@ -204,6 +206,9 @@
 
     private bool IsOwned(string bookUid)
         => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Library.Any(l => l.Uid == bookUid) == true;
+
+    private bool IsPremiumOwned(string bookUid)
+        => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == bookUid)?.IsPremium == true;
 
     private bool IsInCart(string bookUid)
         => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Cart.Any(c => c.BookUid == bookUid) == true;
@@ -217,11 +222,11 @@
 
     private async Task OnBookPurchased() => await AuthState.RefreshProfileAsync();
 
-    private static BookCardData ToCardData(Book book) => new(book.Uid, book.Title ?? "Untitled", book.ImageCoverUrl, book.Price, book.Description);
+    private static BookCardData ToCardData(Book book) => new(book.Uid, book.Title ?? "Untitled", book.ImageCoverUrl, book.Price, book.Description, book.PremiumPrice);
 
-    private static BookCardData ToCardData(DummyBook book) => new("", book.Title, book.CoverImage, book.Price, book.Description);
+    private static BookCardData ToCardData(DummyBook book) => new("", book.Title, book.CoverImage, book.Price, book.Description, null);
 
-    private record BookCardData(string Uid, string Title, string? CoverImageUrl, decimal Price, string? Description);
+    private record BookCardData(string Uid, string Title, string? CoverImageUrl, decimal Price, string? Description, decimal? PremiumPrice);
 
     public void Dispose()
     {

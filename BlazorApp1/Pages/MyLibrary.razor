@@ -65,6 +65,8 @@
                         <BookCard Title="@(book.Title ?? "Untitled")"
                                   CoverImageUrl="@book.ImageCoverUrl"
                                   ShowPrice="false"
+                                  IsPremiumOwned="@OwnsPremium(book.Uid)"
+                                  MetaText="@(HasPremiumUpsell(book) ? "★ Premium available" : null)"
                                   ActionLabel="Read"
                                   OnActionClick="() => OnReadClick(book)"
                                   ShowFavoriteToggle="true"
@@ -80,7 +82,14 @@
 <DocumentListModal @bind-IsOpen="_docListOpen"
                     BookTitle="@_selectedBookTitle"
                     Documents="_selectedBookDocs"
-                    OnDocumentSelected="OnDocumentSelected" />
+                    OwnsPremium="@_selectedBookPremiumOwned"
+                    HasPremiumTier="@_selectedBookHasPremiumTier"
+                    OnDocumentSelected="OnDocumentSelected"
+                    OnUpgradeClick="OnUpgradeFromModal" />
+
+<BuyBookModal @bind-IsOpen="_upgradeModalOpen"
+              Items="_upgradeItems"
+              OnPurchased="OnUpgradePurchased" />
 
 @code {
     private enum SortMode { Alphabetical, RecentlyPurchased, RecentlyRead }
@@ -95,6 +104,11 @@
     private string _selectedBookUid = "";
     private string _selectedBookTitle = "";
     private List<BookDocs> _selectedBookDocs = [];
+    private bool _selectedBookPremiumOwned;
+    private bool _selectedBookHasPremiumTier;
+    private Book? _selectedBook;
+    private bool _upgradeModalOpen;
+    private List<CheckoutItem> _upgradeItems = [];
 
     private List<Book> _books
     {
@@ -191,20 +205,58 @@
             return;
         }
 
-        if (book.Documents.Count == 1)
+        var ownsPremium = OwnsPremium(book.Uid);
+
+        if (book.Documents.Count == 1 && !book.Documents[0].IsPremium && book.PremiumPrice is null)
         {
             Nav.NavigateTo($"/read/{book.Uid}/{book.Documents[0].Uid}");
             return;
         }
 
+        _selectedBook = book;
         _selectedBookUid = book.Uid;
         _selectedBookTitle = book.Title ?? "Untitled";
         _selectedBookDocs = book.Documents;
+        _selectedBookPremiumOwned = ownsPremium;
+        _selectedBookHasPremiumTier = book.PremiumPrice is not null;
         _docListOpen = true;
     }
 
     private void OnDocumentSelected(BookDocs doc)
         => Nav.NavigateTo($"/read/{_selectedBookUid}/{doc.Uid}");
+
+    private bool OwnsPremium(string bookUid)
+        => AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == bookUid)?.IsPremium ?? false;
+
+    private bool HasPremiumUpsell(Book book)
+        => book.PremiumPrice is not null && !OwnsPremium(book.Uid);
+
+    private void OnUpgradeFromModal()
+    {
+        if (_selectedBook is null || _selectedBook.PremiumPrice is null) return;
+
+        _upgradeItems =
+        [
+            new CheckoutItem(
+                _selectedBook.Uid,
+                $"{_selectedBook.Title ?? "Untitled"} — Premium Upgrade",
+                _selectedBook.ImageCoverUrl,
+                _selectedBook.Price,
+                _selectedBook.Description,
+                _selectedBook.PremiumPrice,
+                IsPremium: true,
+                IsUpgrade: true)
+        ];
+        _upgradeModalOpen = true;
+    }
+
+    private async Task OnUpgradePurchased()
+    {
+        LibraryCache.InvalidateMyLibrary();
+        await AuthState.RefreshProfileAsync();
+        await LoadMyLibraryAsync();
+        StateHasChanged();
+    }
 
     private bool IsFavorite(string bookUid)
         => AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == bookUid)?.IsFavorite ?? false;

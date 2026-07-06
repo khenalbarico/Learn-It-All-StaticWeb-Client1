@@ -1,0 +1,25 @@
+@{
+    var isLocked = Doc.IsPremium && !OwnsPremium;
+}
+
+<button class="doc-list-item @(Doc.IsPremium ? "premium" : "") @(isLocked ? "locked" : "")"
+        style="--card-index: @Index"
+        @onclick="() => HandleClick(isLocked)">
+    <Icon Name="@(isLocked ? "lock" : "book")" Size="18" />
+    <span class="doc-list-item-title">@(string.IsNullOrWhiteSpace(Doc.Title) ? Doc.Uid : Doc.Title)</span>
+    @if (Doc.IsPremium)
+    {
+        <span class="badge badge-premium">★ Premium</span>
+    }
+</button>
+
+@code {
+    [Parameter] public BookDocs Doc { get; set; } = new();
+    [Parameter] public int Index { get; set; }
+    [Parameter] public bool OwnsPremium { get; set; }
+    [Parameter] public EventCallback<BookDocs> OnSelect { get; set; }
+    [Parameter] public EventCallback OnLockedSelect { get; set; }
+
+    private Task HandleClick(bool isLocked)
+        => isLocked ? OnLockedSelect.InvokeAsync() : OnSelect.InvokeAsync(Doc);
+}

@@ -5,8 +5,8 @@ namespace BlazorApp1.Services.App;
 
 public class PaymentService(IApiClient _api) : IPaymentService
 {
-    public Task<CreatePaymentResult> CreatePaymentIntent(List<string> bookUids)
-        => _api.SubmitAsync<CreatePaymentResult>(ApiFunctions.CreatePaymentIntent, new { BookUids = bookUids });
+    public Task<CreatePaymentResult> CreatePaymentIntent(List<string> bookUids, List<string>? premiumBookUids = null)
+        => _api.SubmitAsync<CreatePaymentResult>(ApiFunctions.CreatePaymentIntent, new { BookUids = bookUids, PremiumBookUids = premiumBookUids ?? [] });
 
     public Task<PaymentStatusResult> GetPaymentStatus(string paymentIntentId, bool forceVerify = false)
         => _api.GetAsync<PaymentStatusResult>(ApiFunctions.GetPaymentStatus, new { PaymentIntentId = paymentIntentId, ForceVerify = forceVerify });
