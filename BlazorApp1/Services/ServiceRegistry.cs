@@ -10,12 +10,9 @@ public static class ServiceRegistry
 {
     public static IServiceCollection AddLearnItAllServices(this IServiceCollection services, string apiEnvironment)
     {
-        services.AddSingleton<IFirebaseCfg, FirebaseWebCfg>();
         services.AddSingleton<IAdSenseCfg, AdSenseWebCfg>();
         services.AddSingleton<JsInteropService>();
-        services.AddSingleton<IAuthPersistence, BrowserAuthPersistence>();
-        services.AddSingleton<TokenCache>();
-        services.AddSingleton<IAppAuthentication, AppAuthentication>();
+        services.AddSingleton<IAppAuthentication, EntraAuthentication>();
 
         services.AddSingleton<IApiUrlGetter, ApiUrlGetter>();
         services.AddHttpClient("LearnItAllApi", (sp, client) =>
@@ -29,7 +26,6 @@ public static class ServiceRegistry
         });
         services.AddSingleton<IApiClient>(sp => new ApiClient(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("LearnItAllApi"),
-            sp.GetRequiredService<TokenCache>(),
             sp.GetRequiredService<IAppAuthentication>()));
 
         services.AddSingleton<IAppService, AppService>();

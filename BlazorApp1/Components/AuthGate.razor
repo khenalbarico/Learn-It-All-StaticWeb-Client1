@@ -21,7 +21,7 @@ else if (AuthState.ProfileLoadError is not null)
 }
 else if (AuthState.CurrentUser is null)
 {
-    <div class="spinner"></div>
+    <GuestNotice Message="Finish setting up your account to continue." />
 }
 else
 {

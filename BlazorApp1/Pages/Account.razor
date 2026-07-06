@@ -1,10 +1,8 @@
 @page "/account"
 @implements IDisposable
 @using System.ComponentModel.DataAnnotations
-@using BlazorApp1.Models.Validation
 @inject AuthSessionState AuthState
 @inject IAppService AppService
-@inject IAppAuthentication Auth
 
 <PageTitle>Account - Learn It All</PageTitle>
 
@@ -69,51 +67,11 @@
             </EditForm>
         </div>
 
-        <details class="card password-section">
-            <summary>Change Password</summary>
-
-            <EditForm Model="_passwordModel" OnValidSubmit="ChangePassword">
-                <DataAnnotationsValidator />
-
-                <div class="form-field">
-                    <label for="acc-currentpass">Current password</label>
-                    <InputText id="acc-currentpass" type="password" autocomplete="current-password"
-                               @bind-Value="_passwordModel.CurrentPassword" />
-                    <ValidationMessage For="() => _passwordModel.CurrentPassword" />
-                </div>
-
-                <div class="form-field">
-                    <label for="acc-newpass">New password</label>
-                    <InputText id="acc-newpass" type="password" autocomplete="new-password"
-                               @bind-Value="_passwordModel.NewPassword" />
-                    <ValidationMessage For="() => _passwordModel.NewPassword" />
-                </div>
-
-                <PasswordStrengthHint Password="@_passwordModel.NewPassword" />
-
-                <div class="form-field">
-                    <label for="acc-confirmpass">Confirm new password</label>
-                    <InputText id="acc-confirmpass" type="password" autocomplete="new-password"
-                               @bind-Value="_passwordModel.ConfirmPassword" />
-                    <ValidationMessage For="() => _passwordModel.ConfirmPassword" />
-                </div>
-
-                @if (!string.IsNullOrEmpty(_passwordMessage))
-                {
-                    <p class="@(_passwordSuccess ? "form-hint" : "form-error")">@_passwordMessage</p>
-                }
-
-                <button type="submit" class="btn btn-secondary" disabled="@_passwordBusy">
-                    @(_passwordBusy ? "Updating..." : "Update Password")
-                </button>
-            </EditForm>
-        </details>
     </AuthGate>
 </div>
 
 @code {
     private readonly ProfileModel _profileModel = new();
-    private readonly PasswordModel _passwordModel = new();
 
     private string _originalFirstName = "";
     private string _originalLastName = "";
@@ -123,10 +81,6 @@
     private bool _profileBusy;
     private string? _profileMessage;
     private bool _profileSuccess;
-
-    private bool _passwordBusy;
-    private string? _passwordMessage;
-    private bool _passwordSuccess;
 
     private bool IsProfileDirty =>
         _profileModel.FirstName.Trim() != _originalFirstName ||
@@ -205,53 +159,6 @@
         }
     }
 
-    private async Task ChangePassword()
-    {
-        _passwordMessage = null;
-        _passwordBusy = true;
-
-        try
-        {
-            var email = AuthState.CurrentUser?.Email ?? "";
-
-            if (!await Auth.IsSamePasswordAsync(email, _passwordModel.CurrentPassword))
-            {
-                _passwordMessage = "Current password is incorrect.";
-                _passwordSuccess = false;
-                return;
-            }
-
-            if (_passwordModel.NewPassword == _passwordModel.CurrentPassword)
-            {
-                _passwordMessage = "New password must be different from your current password.";
-                _passwordSuccess = false;
-                return;
-            }
-
-            await Auth.ChangePasswordAsync(_passwordModel.NewPassword);
-            _ = AppService.LogActivity("Password changed");
-            _passwordMessage = "Password updated.";
-            _passwordSuccess = true;
-            _passwordModel.CurrentPassword = "";
-            _passwordModel.NewPassword = "";
-            _passwordModel.ConfirmPassword = "";
-        }
-        catch (ApiUnavailableException ex)
-        {
-            _passwordMessage = ex.Message;
-            _passwordSuccess = false;
-        }
-        catch (Exception)
-        {
-            _passwordMessage = "Could not update your password. Please try again.";
-            _passwordSuccess = false;
-        }
-        finally
-        {
-            _passwordBusy = false;
-        }
-    }
-
     public void Dispose()
     {
         AuthState.OnChange -= OnAuthChanged;
@@ -268,19 +175,5 @@
         [Required(ErrorMessage = "Please enter your phone number.")]
         [Phone(ErrorMessage = "Please enter a valid phone number.")]
         public string PhoneNumber { get; set; } = "";
-    }
-
-    private class PasswordModel
-    {
-        [Required(ErrorMessage = "Please enter your current password.")]
-        public string CurrentPassword { get; set; } = "";
-
-        [Required(ErrorMessage = "Please enter a new password.")]
-        [StrongPassword]
-        public string NewPassword { get; set; } = "";
-
-        [Required(ErrorMessage = "Please confirm your new password.")]
-        [Compare(nameof(NewPassword), ErrorMessage = "Passwords do not match.")]
-        public string ConfirmPassword { get; set; } = "";
     }
 }

@@ -1,42 +1,66 @@
 @page "/auth"
+@implements IDisposable
 @inject AuthSessionState AuthState
 @inject NavigationManager Nav
 
 <PageTitle>Sign In - Learn It All</PageTitle>
 
 <div class="form-container">
-    @switch (_view)
+    @if (AuthState.IsInitializing)
     {
-        case AuthView.Login:
-            <LoginForm OnRegisterClick="() => _view = AuthView.Register"
-                       OnForgotPasswordClick="() => _view = AuthView.ForgotPassword" />
-            break;
-        case AuthView.Register:
-            <RegisterForm OnLoginClick="() => _view = AuthView.Login"
-                          OnRegistered="OnRegistered" />
-            break;
-        case AuthView.ForgotPassword:
-            <ForgotPasswordForm OnBackToLogin="() => _view = AuthView.Login" />
-            break;
-        case AuthView.CollectProfile:
-            <ProfileCollectionForm OnProfileSaved="() => _view = AuthView.VerifyEmail" />
-            break;
-        case AuthView.VerifyEmail:
-            <VerifyEmailNotice />
-            break;
+        <p class="form-hint">Loading...</p>
+    }
+    else if (!AuthState.IsAuthenticated)
+    {
+        <h1>Welcome</h1>
+        <p class="form-hint">Sign in or create your account with Google, Facebook, or Microsoft on the next screen.</p>
+
+        <button type="button" class="btn btn-primary btn-block" @onclick="SignIn">
+            Sign In / Create Account
+        </button>
+    }
+    else if (AuthState.ProfileLoadError is not null)
+    {
+        <p class="form-error">@AuthState.ProfileLoadError</p>
+        <button type="button" class="btn btn-secondary" @onclick="RetryProfile">Try Again</button>
+    }
+    else if (AuthState.CurrentUser is null)
+    {
+        <ProfileCollectionForm OnProfileSaved="OnProfileSaved" />
     }
 </div>
 
 @code {
-    private enum AuthView { Login, Register, CollectProfile, VerifyEmail, ForgotPassword }
-
-    private AuthView _view = AuthView.Login;
-
     protected override void OnInitialized()
     {
-        if (AuthState.IsAuthenticated)
+        AuthState.OnChange += OnAuthChanged;
+        RedirectHomeIfComplete();
+    }
+
+    private void OnAuthChanged()
+    {
+        RedirectHomeIfComplete();
+        StateHasChanged();
+    }
+
+    private void RedirectHomeIfComplete()
+    {
+        if (!AuthState.IsInitializing && AuthState.IsAuthenticated && AuthState.CurrentUser is not null)
             Nav.NavigateTo("/");
     }
 
-    private void OnRegistered() => _view = AuthView.CollectProfile;
+    private void SignIn() => AuthState.BeginSignIn();
+
+    private Task RetryProfile() => AuthState.RefreshProfileAsync();
+
+    private async Task OnProfileSaved()
+    {
+        await AuthState.RefreshProfileAsync();
+        Nav.NavigateTo("/");
+    }
+
+    public void Dispose()
+    {
+        AuthState.OnChange -= OnAuthChanged;
+    }
 }

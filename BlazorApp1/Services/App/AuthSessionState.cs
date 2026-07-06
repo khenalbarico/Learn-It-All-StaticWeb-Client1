@@ -15,8 +15,7 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
 
     public async Task FastInitializeAsync()
     {
-        await _auth.TryRestoreSessionAsync();
-        IsAuthenticated = _auth.IsAuthenticated;
+        IsAuthenticated = await _auth.IsAuthenticatedAsync();
 
         if (IsAuthenticated)
             await LoadProfileAsync();
@@ -89,35 +88,18 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
             OnChange?.Invoke();
     }
 
-    public async Task<AuthResult> SignInAsync(string email, string password)
-    {
-        var result = await _auth.SignInWithEmailAsync(email, password);
-        IsAuthenticated = true;
-        OnChange?.Invoke();
-        _ = LoadProfileAsync();
-        _ = _appService.LogActivity("Logged in");
-        return result;
-    }
-
-    public Task RegisterAsync(string email, string password)
-        => _auth.RegisterWithEmailAsync(email, password);
-
-    public async Task CompleteVerificationAsync()
-    {
-        await _auth.CheckEmailVerifiedAsync();
-        IsAuthenticated = true;
-        OnChange?.Invoke();
-        _ = LoadProfileAsync();
-    }
+    public void BeginSignIn(string returnUrl = "auth")
+        => _auth.SignIn(returnUrl);
 
     public async Task SignOutAsync()
     {
         await _appService.LogActivity("Logged out");
 
-        _auth.SignOut();
         IsAuthenticated = false;
         CurrentUser = null;
         _libraryCache.ClearAll();
         OnChange?.Invoke();
+
+        _auth.SignOut("/");
     }
 }
