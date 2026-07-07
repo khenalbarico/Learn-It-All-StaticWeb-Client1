@@ -629,6 +629,11 @@ h1:focus-visible {
     font-size: 0.78rem;
     color: var(--color-text-muted);
     margin-top: -0.15rem;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
 }
 
 .book-card-cover {
@@ -652,6 +657,12 @@ h1:focus-visible {
     font-weight: 700;
     font-size: 0.95rem;
     line-height: 1.25;
+    min-height: calc(1.25em * 2);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
 }
 
 .book-card-footer {
@@ -660,7 +671,8 @@ h1:focus-visible {
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 0.5rem;
-    margin-top: 0.4rem;
+    margin-top: auto;
+    padding-top: 0.4rem;
 }
 
 .book-card-price {
