@@ -836,6 +836,9 @@ h1:focus-visible {
     background-image: var(--gradient-nav);
     border-bottom: 1px solid var(--color-border);
     flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 5;
 }
 
 .reader-back {
@@ -913,6 +916,32 @@ h1:focus-visible {
     border-left: 1px solid var(--color-border);
 }
 
+.reader-pagejump {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding-left: 0.5rem;
+    border-left: 1px solid var(--color-border);
+}
+
+.reader-pagejump-input {
+    width: 3.4rem;
+    padding: 0.3rem 0.4rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    font-size: 0.85rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+    .reader-pagejump-input::-webkit-inner-spin-button,
+    .reader-pagejump-input::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
 .reader-favorite {
     min-width: 40px;
     min-height: 40px;
@@ -948,6 +977,10 @@ h1:focus-visible {
 
     .reader-select {
         max-width: 140px;
+    }
+
+    .reader-pagejump-input {
+        width: 2.8rem;
     }
 }
 
@@ -1686,6 +1719,7 @@ code {
     gap: 0.4rem;
     flex: 1 1 auto;
     min-width: 0;
+    min-height: 36px;
 }
 
     .book-card-actions .btn {

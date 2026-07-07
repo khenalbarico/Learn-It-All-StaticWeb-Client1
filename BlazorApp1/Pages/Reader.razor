@@ -71,6 +71,16 @@
                         <Icon Name="zoom-in" Size="16" />
                     </button>
                 </div>
+
+                <form class="reader-pagejump" @onsubmit="SubmitPageJump" @onsubmit:preventDefault="true">
+                    <input type="number" class="reader-pagejump-input" min="1" max="@_totalPages"
+                           placeholder="@_currentPage" value="@_pageJumpInput"
+                           @oninput="OnPageJumpInput" disabled="@_loading"
+                           aria-label="Jump to page" title="Jump to a specific page" />
+                    <button type="submit" class="btn btn-ghost btn-sm reader-pagenav-btn" aria-label="Jump to page" title="Jump to page">
+                        <Icon Name="check" Size="16" />
+                    </button>
+                </form>
             }
         </div>
 
@@ -114,6 +124,7 @@
     private double _zoom = 1.0;
     private string? _loadedForKey;
     private CancellationTokenSource? _progressSaveCts;
+    private string _pageJumpInput = "";
 
     protected override async Task OnParametersSetAsync()
     {
@@ -210,6 +221,16 @@
         _currentPage = await JsInterop.GoToPdfPageAsync(_containerId, page);
         ScheduleProgressSave();
         StateHasChanged();
+    }
+
+    private void OnPageJumpInput(ChangeEventArgs e) => _pageJumpInput = e.Value?.ToString() ?? "";
+
+    private async Task SubmitPageJump()
+    {
+        if (int.TryParse(_pageJumpInput, out var page))
+            await GoToPage(page);
+
+        _pageJumpInput = "";
     }
 
     private async Task ZoomIn()
