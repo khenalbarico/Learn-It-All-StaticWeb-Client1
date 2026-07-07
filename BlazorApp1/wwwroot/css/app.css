@@ -958,15 +958,86 @@ h1:focus-visible {
         flex-shrink: 0;
     }
 
+.book-detail-cover-wrap {
+    position: relative;
+    width: 140px;
+    margin: 0 auto 1rem;
+}
+
 .book-detail-cover {
+    position: relative;
+    z-index: 1;
     width: 140px;
     aspect-ratio: 3 / 4;
     object-fit: cover;
     border-radius: var(--radius-md);
-    margin: 0 auto 1rem;
+    margin: 0;
     display: block;
     box-shadow: var(--shadow-md);
     animation: scaleIn var(--duration-base) var(--ease-spring) both;
+    transition: transform var(--duration-base) var(--ease-spring);
+}
+
+.book-detail-cover-wrap.premium-active .book-detail-cover {
+    transform: scale(1.04);
+}
+
+.book-detail-cover-wrap .stack-page {
+    position: absolute;
+    inset: 0;
+    aspect-ratio: 3 / 4;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg,
+        color-mix(in srgb, #f59e0b 16%, var(--color-surface-alt)),
+        color-mix(in srgb, #fbbf24 10%, var(--color-surface)));
+    border: 1px solid color-mix(in srgb, #f59e0b 35%, var(--color-border));
+    box-shadow: var(--shadow-sm);
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg) scale(0.92);
+    transition: transform var(--duration-slow) var(--ease-spring), opacity var(--duration-base) var(--ease-out);
+    z-index: 0;
+}
+
+.book-detail-cover-wrap.premium-active .stack-page-1 {
+    opacity: 1;
+    transform: translate(12px, 8px) rotate(7deg) scale(1);
+}
+
+.book-detail-cover-wrap.premium-active .stack-page-2 {
+    opacity: 1;
+    transform: translate(-12px, 11px) rotate(-9deg) scale(1);
+    transition-delay: 0.06s;
+}
+
+.book-detail-cover-wrap.premium-active .stack-page-3 {
+    opacity: 0.85;
+    transform: translate(16px, -7px) rotate(11deg) scale(1);
+    transition-delay: 0.12s;
+}
+
+.premium-glow {
+    position: absolute;
+    inset: -18px;
+    border-radius: var(--radius-lg);
+    background: radial-gradient(circle, rgba(245, 158, 11, 0.35), transparent 70%);
+    opacity: 0;
+    transition: opacity var(--duration-slow) var(--ease-out);
+    z-index: -1;
+    pointer-events: none;
+}
+
+.book-detail-cover-wrap.premium-active .premium-glow {
+    opacity: 1;
+    animation: pulseDot 1.8s ease-in-out infinite;
+}
+
+.premium-callout {
+    color: #b45309;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-align: center;
+    margin: 0 0 0.75rem;
+    animation: fadeInUp var(--duration-base) var(--ease-out) both;
 }
 
 .book-detail-desc {

@@ -86,6 +86,12 @@
     [Parameter]
     public string? CategoryQuery { get; set; }
 
+    [SupplyParameterFromQuery(Name = "buy")]
+    [Parameter]
+    public string? BuyBookUid { get; set; }
+
+    private string? _autoBuyHandledFor;
+
     private string _selectedCategory = "CollegeCourse";
     private List<BookCardData> _categoryBooks = [];
     private string _searchTerm = "";
@@ -118,6 +124,20 @@
     {
         if (firstRender)
             await LoadCategoryAsync(_selectedCategory);
+
+        TryAutoOpenBuyModal();
+    }
+
+    private void TryAutoOpenBuyModal()
+    {
+        if (string.IsNullOrWhiteSpace(BuyBookUid) || BuyBookUid == _autoBuyHandledFor || _loading) return;
+
+        var match = _categoryBooks.FirstOrDefault(b => b.Uid == BuyBookUid);
+        if (match is null) return;
+
+        _autoBuyHandledFor = BuyBookUid;
+        OnBuyClick(match);
+        StateHasChanged();
     }
 
     private async void OnAuthChanged()

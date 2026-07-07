@@ -126,6 +126,8 @@
                             <BookCard Title="@book.Title"
                                       CoverImageUrl="@book.CoverImageUrl"
                                       Price="@book.Price"
+                                      PremiumPrice="@book.PremiumPrice"
+                                      IsPremiumOwned="@IsPremiumOwned(book.Uid)"
                                       ShowPrice="@(!IsOwned(book.Uid))"
                                       ActionLabel="@(IsOwned(book.Uid) ? "Owned" : "Buy")"
                                       ShowActionButton="@(!IsOwned(book.Uid))"
@@ -148,10 +150,6 @@
                     Documents="_selectedBookDocs"
                     OnDocumentSelected="OnDocumentSelected" />
 
-<BuyBookModal @bind-IsOpen="_paymentModalOpen"
-              Items="_checkoutItems"
-              OnPurchased="OnBookPurchased" />
-
 @code {
     private bool _keywordModalOpen;
     private bool _hasAutoPrompted;
@@ -167,9 +165,6 @@
     private string _selectedBookUid = "";
     private string _selectedBookTitle = "";
     private List<BookDocs> _selectedBookDocs = [];
-
-    private bool _paymentModalOpen;
-    private List<CheckoutItem> _checkoutItems = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -366,12 +361,16 @@
             return;
         }
 
-        _checkoutItems = [new CheckoutItem(book.Uid, book.Title, book.CoverImageUrl, book.Price, book.Description)];
-        _paymentModalOpen = true;
+        var category = Uri.EscapeDataString(book.Category ?? "");
+        var uid = Uri.EscapeDataString(book.Uid);
+        Nav.NavigateTo($"/library?category={category}&buy={uid}");
     }
 
     private bool IsOwned(string bookUid)
         => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Library.Any(l => l.Uid == bookUid) == true;
+
+    private bool IsPremiumOwned(string bookUid)
+        => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == bookUid)?.IsPremium == true;
 
     private bool IsInCart(string bookUid)
         => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Cart.Any(c => c.BookUid == bookUid) == true;
@@ -383,11 +382,9 @@
         await AppService.AddToCart(book.Uid);
     }
 
-    private async Task OnBookPurchased() => await AuthState.RefreshProfileAsync();
+    private static BookCardData ToCardData(Book book) => new(book.Uid, book.Category, book.Title ?? "Untitled", book.ImageCoverUrl, book.Price, book.PremiumPrice, book.Description);
 
-    private static BookCardData ToCardData(Book book) => new(book.Uid, book.Title ?? "Untitled", book.ImageCoverUrl, book.Price, book.Description);
-
-    private record BookCardData(string Uid, string Title, string? CoverImageUrl, decimal Price, string? Description);
+    private record BookCardData(string Uid, string? Category, string Title, string? CoverImageUrl, decimal Price, decimal? PremiumPrice, string? Description);
 
     private record HistoryEntry(string BookUid, string DocUid, string Title, string? CoverImageUrl, string MetaText);
 

@@ -1,8 +1,17 @@
 @using System.ComponentModel.DataAnnotations
 @inject IAppService AppService
+@inject IAppAuthentication AppAuthentication
 
 <h3>Tell us about you</h3>
 <p class="form-hint">A few details to finish setting up your account.</p>
+
+@if (_prefilled)
+{
+    <p class="form-hint prefill-hint">
+        <Icon Name="check" Size="14" />
+        We've filled in what your sign-in provider shared. Please review and confirm it's correct.
+    </p>
+}
 
 <EditForm Model="_model" OnValidSubmit="Submit" class="auth-form">
     <DataAnnotationsValidator />
@@ -41,6 +50,37 @@
     private readonly ProfileModel _model = new();
     private string? _error;
     private bool _busy;
+    private bool _prefilled;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var hint = await AppAuthentication.GetProfileHintAsync();
+
+            if (!string.IsNullOrWhiteSpace(hint.FirstName))
+            {
+                _model.FirstName = hint.FirstName.Trim();
+                _prefilled = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(hint.LastName))
+            {
+                _model.LastName = hint.LastName.Trim();
+                _prefilled = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(hint.PhoneNumber))
+            {
+                _model.PhoneNumber = hint.PhoneNumber.Trim();
+                _prefilled = true;
+            }
+        }
+        catch (Exception)
+        {
+            // Prefill is a convenience only - fall back to a blank form silently.
+        }
+    }
 
     private async Task Submit()
     {

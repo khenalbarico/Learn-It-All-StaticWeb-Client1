@@ -49,6 +49,30 @@ public class EntraAuthentication : IAppAuthentication, IDisposable
         };
     }
 
+    public async Task<ProfileHint> GetProfileHintAsync()
+    {
+        var state = await _stateProvider.GetAuthenticationStateAsync();
+        var user  = state.User;
+
+        var firstName = FindClaim(user, "given_name");
+        var lastName  = FindClaim(user, "family_name");
+
+        if (string.IsNullOrWhiteSpace(firstName) && string.IsNullOrWhiteSpace(lastName))
+        {
+            var fullName = FindClaim(user, "name");
+            if (!string.IsNullOrWhiteSpace(fullName))
+            {
+                var parts = fullName.Trim().Split(' ', 2);
+                firstName = parts[0];
+                lastName  = parts.Length > 1 ? parts[1] : null;
+            }
+        }
+
+        var phoneNumber = FindClaim(user, "phone_number") ?? FindClaim(user, ClaimTypes.MobilePhone);
+
+        return new ProfileHint(firstName, lastName, phoneNumber);
+    }
+
     public void SignIn(string returnUrl)
     {
         var options = new InteractiveRequestOptions
