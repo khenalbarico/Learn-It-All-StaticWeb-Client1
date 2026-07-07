@@ -75,6 +75,10 @@
               Items="_checkoutItems"
               OnPurchased="OnBookPurchased" />
 
+<AddToCartModal @bind-IsOpen="_addToCartModalOpen"
+                Candidate="_addToCartCandidate"
+                OnConfirm="ConfirmAddToCart" />
+
 @code {
     private readonly List<(string Value, string Label)> _categories =
     [
@@ -100,6 +104,8 @@
     private bool _authRequiredOpen;
     private bool _paymentModalOpen;
     private List<CheckoutItem> _checkoutItems = [];
+    private bool _addToCartModalOpen;
+    private CheckoutItem? _addToCartCandidate;
     private List<DummyBook>? _dummyCatalog;
 
     private List<BookCardData> _books => string.IsNullOrWhiteSpace(_searchTerm)
@@ -236,8 +242,25 @@
     private async Task OnAddToCart(BookCardData book)
     {
         if (string.IsNullOrEmpty(book.Uid) || IsOwned(book.Uid) || IsInCart(book.Uid)) return;
+
+        if (book.PremiumPrice is not null)
+        {
+            _addToCartCandidate = new CheckoutItem(book.Uid, book.Title, book.CoverImageUrl, book.Price, book.Description, book.PremiumPrice);
+            _addToCartModalOpen = true;
+            return;
+        }
+
         AuthState.AddToCartLocal(book.Uid);
         await AppService.AddToCart(book.Uid);
+    }
+
+    private async Task ConfirmAddToCart(bool isPremium)
+    {
+        if (_addToCartCandidate is null) return;
+
+        AuthState.AddToCartLocal(_addToCartCandidate.BookUid, isPremium);
+        await AppService.AddToCart(_addToCartCandidate.BookUid, isPremium);
+        _addToCartCandidate = null;
     }
 
     private async Task OnBookPurchased() => await AuthState.RefreshProfileAsync();

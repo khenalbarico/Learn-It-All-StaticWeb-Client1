@@ -15,6 +15,6 @@ public interface IAppService
     Task UpdateUserKeywords(List<string> keywords);
     Task SaveReadingProgress(string bookUid, string docUid, int page, int totalPages);
     Task SetFavorite(string bookUid, bool isFavorite);
-    Task AddToCart(string bookUid);
+    Task AddToCart(string bookUid, bool isPremium = false);
     Task RemoveFromCart(string bookUid);
 }

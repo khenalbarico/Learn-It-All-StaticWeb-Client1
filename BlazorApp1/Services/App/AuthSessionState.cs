@@ -119,12 +119,12 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
         OnChange?.Invoke();
     }
 
-    public void AddToCartLocal(string bookUid)
+    public void AddToCartLocal(string bookUid, bool isPremium = false)
     {
         if (CurrentUser is null) return;
         if (CurrentUser.Cart.Any(c => c.BookUid == bookUid)) return;
 
-        CurrentUser.Cart.Add(new CartItem { BookUid = bookUid, AddedAt = DateTime.UtcNow });
+        CurrentUser.Cart.Add(new CartItem { BookUid = bookUid, AddedAt = DateTime.UtcNow, IsPremium = isPremium });
         OnChange?.Invoke();
     }
 

@@ -1,0 +1,58 @@
+@if (IsOpen && Candidate is not null)
+{
+    <div class="modal-backdrop" @onclick="Close">
+        <div class="modal-box" @onclick:stopPropagation="true">
+            <img class="book-detail-cover" src="@ResolveCover(Candidate.CoverUrl)" alt="@Candidate.Title cover" />
+            <h3>@Candidate.Title</h3>
+            <p class="form-hint">Choose which edition to add to your cart.</p>
+
+            <div class="tier-options">
+                <button class="tier-option @(!_premiumSelected ? "selected" : "")" @onclick="() => _premiumSelected = false">
+                    <span class="tier-option-name">Regular</span>
+                    <span class="tier-option-price">₱@Candidate.Price.ToString("N2")</span>
+                </button>
+                <button class="tier-option tier-option-premium @(_premiumSelected ? "selected" : "")" @onclick="() => _premiumSelected = true">
+                    <span class="tier-option-name">★ Premium</span>
+                    <span class="tier-option-price">₱@(Candidate.PremiumPrice ?? 0).ToString("N2")</span>
+                    <span class="tier-option-hint">Includes bonus content</span>
+                </button>
+            </div>
+
+            <button class="btn btn-primary btn-block" @onclick="Confirm">Add to Cart</button>
+            <button class="btn btn-ghost btn-block" @onclick="Close">Cancel</button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public CheckoutItem? Candidate { get; set; }
+    [Parameter] public EventCallback<bool> OnConfirm { get; set; }
+
+    private bool _premiumSelected;
+    private string? _openedForUid;
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && Candidate?.BookUid != _openedForUid)
+        {
+            _openedForUid = Candidate?.BookUid;
+            _premiumSelected = false;
+        }
+    }
+
+    private static string ResolveCover(string? url) => string.IsNullOrWhiteSpace(url) ? "imgs/app_logo.png" : url!;
+
+    private async Task Confirm()
+    {
+        await Close();
+        await OnConfirm.InvokeAsync(_premiumSelected);
+    }
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}

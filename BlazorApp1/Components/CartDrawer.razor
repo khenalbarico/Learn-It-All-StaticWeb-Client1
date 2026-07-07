@@ -30,8 +30,14 @@
                         <div class="cart-item">
                             <img class="cart-item-cover" src="@ResolveCover(item.CoverUrl)" alt="@item.Title cover" />
                             <div class="cart-item-info">
-                                <span class="cart-item-title">@item.Title</span>
-                                <span class="cart-item-price">₱@item.Price.ToString("N2")</span>
+                                <span class="cart-item-title">
+                                    @item.Title
+                                    @if (item.IsPremium)
+                                    {
+                                        <span class="badge badge-premium">★ Premium</span>
+                                    }
+                                </span>
+                                <span class="cart-item-price">₱@item.EffectivePrice.ToString("N2")</span>
                             </div>
                             <button class="btn btn-ghost btn-icon" @onclick="() => RemoveItem(item.BookUid)"
                                     title="Remove from cart" aria-label="Remove from cart">
@@ -43,7 +49,7 @@
 
                 <div class="cart-total">
                     <span>Total</span>
-                    <strong>₱@_items.Sum(i => i.Price).ToString("N2")</strong>
+                    <strong>₱@_items.Sum(i => i.EffectivePrice).ToString("N2")</strong>
                 </div>
 
                 <button class="btn btn-primary btn-block" @onclick="StartCheckout">Checkout</button>
@@ -115,9 +121,9 @@
         }
 
         _items = cart
-            .Select(c => allBooks.FirstOrDefault(b => b.Uid == c.BookUid))
-            .Where(b => b is not null)
-            .Select(b => new CheckoutItem(b!.Uid, b.Title ?? "Untitled", b.ImageCoverUrl, b.Price))
+            .Select(c => (Cart: c, Book: allBooks.FirstOrDefault(b => b.Uid == c.BookUid)))
+            .Where(x => x.Book is not null)
+            .Select(x => new CheckoutItem(x.Book!.Uid, x.Book.Title ?? "Untitled", x.Book.ImageCoverUrl, x.Book.Price, x.Book.Description, x.Book.PremiumPrice, x.Cart.IsPremium))
             .ToList();
 
         _loading = false;
