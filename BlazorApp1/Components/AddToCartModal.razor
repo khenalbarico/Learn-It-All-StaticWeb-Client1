@@ -23,7 +23,7 @@
                 </button>
                 <button class="tier-option tier-option-premium @(_premiumSelected ? "selected" : "")" @onclick="() => _premiumSelected = true">
                     <span class="tier-option-name">★ Premium</span>
-                    <span class="tier-option-price">₱@(Candidate.PremiumPrice ?? 0).ToString("N2")</span>
+                    <span class="tier-option-price">₱@PremiumPriceDisplay.ToString("N2")</span>
                     <span class="tier-option-hint">Includes bonus content</span>
                 </button>
             </div>
@@ -48,6 +48,8 @@
     private decimal SelectedPrice => _premiumSelected && Candidate?.PremiumPrice is decimal premium
         ? premium
         : Candidate?.Price ?? 0;
+
+    private decimal PremiumPriceDisplay => Candidate?.PremiumPrice ?? 0;
 
     protected override void OnParametersSet()
     {

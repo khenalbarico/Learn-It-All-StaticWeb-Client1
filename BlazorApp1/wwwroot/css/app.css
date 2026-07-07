@@ -1503,16 +1503,23 @@ code {
 
     .book-card-footer {
         flex-direction: column;
-        align-items: stretch;
+        align-items: center;
+        text-align: center;
     }
 
     .book-card-actions {
-        justify-content: space-between;
+        justify-content: center;
         width: 100%;
+        gap: 0.6rem;
     }
 
         .book-card-actions .btn-primary {
             flex: 1 1 auto;
+            max-width: 220px;
+        }
+
+        .book-card-actions .btn-icon {
+            flex: 0 0 auto;
         }
 }
 
@@ -1582,8 +1589,8 @@ code {
 
 .keyword-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.85rem;
     margin: 1.5rem 0;
 }
 
@@ -1591,28 +1598,39 @@ code {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
-    padding: 1rem 0.5rem;
-    border: 1.5px solid var(--color-border);
+    gap: 0.4rem;
+    padding: 0.65rem 0.4rem 0.75rem;
+    border: 1.5px solid transparent;
     border-radius: var(--radius-md);
     background: var(--color-surface);
     color: var(--color-text);
     cursor: pointer;
     font-size: 0.85rem;
     font-weight: 600;
-    transition: border-color var(--duration-base) var(--ease-out), background-color var(--duration-base) var(--ease-out);
+    transition: border-color var(--duration-base) var(--ease-out), background-color var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
 }
 
+    .keyword-chip:hover {
+        transform: translateY(-2px);
+    }
+
 .keyword-chip img {
-    width: 36px;
-    height: 36px;
+    width: 100%;
+    max-width: 92px;
+    aspect-ratio: 1 / 1;
     object-fit: contain;
+    transition: transform var(--duration-base) var(--ease-out), filter var(--duration-base) var(--ease-out);
 }
 
 .keyword-chip.selected {
     border-color: var(--color-primary);
     background: var(--color-surface-alt);
 }
+
+    .keyword-chip.selected img {
+        transform: scale(1.08);
+        filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-primary) 55%, transparent));
+    }
 
 .home-section {
     margin: 2.5rem 0;
