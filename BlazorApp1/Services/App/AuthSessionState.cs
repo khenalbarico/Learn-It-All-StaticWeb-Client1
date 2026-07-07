@@ -8,19 +8,66 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
 {
     public bool IsAuthenticated { get; private set; }
     public bool IsInitializing { get; private set; } = true;
+    public bool IsResolvingSession { get; private set; }
     public UserInfo? CurrentUser { get; private set; }
     public string? ProfileLoadError { get; private set; }
+    public bool SignInModalOpen { get; private set; }
+
+    // True while we're mid-transition (e.g. just came back from the identity
+    // provider redirect) and haven't yet confirmed both the auth state AND
+    // the profile. Consumers must treat this exactly like IsInitializing -
+    // otherwise there's a window where a stale "guest" state can render with
+    // clickable sign-in buttons a split second before the real state lands.
+    public bool IsBusy => IsInitializing || IsResolvingSession;
+
+    public bool NeedsProfileSetup
+        => !IsBusy
+        && IsAuthenticated
+        && CurrentUser is null
+        && ProfileLoadError is null;
 
     public event Action? OnChange;
 
     public async Task FastInitializeAsync()
     {
+        _auth.StateChanged += HandleAuthStateChanged;
+
         IsAuthenticated = await _auth.IsAuthenticatedAsync();
 
         if (IsAuthenticated)
             await LoadProfileAsync();
 
         IsInitializing = false;
+        OnChange?.Invoke();
+    }
+
+    private async void HandleAuthStateChanged()
+    {
+        IsResolvingSession = true;
+        OnChange?.Invoke();
+
+        var wasAuthenticated = IsAuthenticated;
+        IsAuthenticated = await _auth.IsAuthenticatedAsync();
+
+        if (IsAuthenticated && !wasAuthenticated)
+        {
+            SignInModalOpen = false;
+            await LoadProfileAsync();
+        }
+
+        IsResolvingSession = false;
+        OnChange?.Invoke();
+    }
+
+    public void OpenSignInModal()
+    {
+        SignInModalOpen = true;
+        OnChange?.Invoke();
+    }
+
+    public void CloseSignInModal()
+    {
+        SignInModalOpen = false;
         OnChange?.Invoke();
     }
 
@@ -97,6 +144,7 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
 
         IsAuthenticated = false;
         CurrentUser = null;
+        SignInModalOpen = false;
         _libraryCache.ClearAll();
         OnChange?.Invoke();
 

@@ -1,4 +1,4 @@
-@inject NavigationManager Nav
+@inject AuthSessionState AuthState
 
 @if (IsOpen)
 {
@@ -31,6 +31,6 @@
     private async Task GoToLogin()
     {
         await Close();
-        Nav.NavigateTo("/auth");
+        AuthState.OpenSignInModal();
     }
 }

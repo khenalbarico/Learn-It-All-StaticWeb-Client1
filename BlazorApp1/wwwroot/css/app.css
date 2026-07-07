@@ -1850,3 +1850,93 @@ code {
     font-size: 0.7rem;
     color: var(--color-text-muted);
 }
+
+/* ── Profile setup modal ──────────────────────────────────── */
+
+.profile-setup-modal {
+    max-width: 420px;
+    width: 100%;
+    text-align: left;
+}
+
+    .profile-setup-modal h3 {
+        text-align: center;
+        margin-bottom: 0.25rem;
+    }
+
+    .profile-setup-modal > .btn-ghost {
+        margin-top: 0.6rem;
+    }
+
+/* ── Sign-in modal & guest nav ────────────────────────────── */
+
+.nav-actions-slim {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-left: auto;
+}
+
+.signin-modal {
+    max-width: 400px;
+}
+
+.signin-logo {
+    width: 72px;
+    height: 72px;
+    border-radius: var(--radius-md);
+    margin: 0 auto 0.9rem;
+    display: block;
+    animation: popIn var(--duration-slow) var(--ease-spring) both;
+}
+
+.signin-providers {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 0.9rem 0 1.1rem;
+}
+
+    .signin-providers span {
+        padding: 0.3rem 0.75rem;
+        border-radius: var(--radius-pill);
+        border: 1px solid var(--color-border);
+        background-color: var(--color-surface-alt);
+        color: var(--color-text-muted);
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+
+.takeover-backdrop {
+    background-color: color-mix(in srgb, var(--color-bg) 82%, transparent);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+}
+
+.profile-setup-modal .icon-badge {
+    margin-bottom: 0.4rem;
+}
+
+/* ── Auth transition loading ──────────────────────────────── */
+
+.auth-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem;
+    text-align: center;
+}
+
+    .auth-loading .spinner {
+        margin: 0 0 1rem;
+    }
+
+.nav-spinner {
+    width: 1.1rem;
+    height: 1.1rem;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-primary-strong);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+}

@@ -1,8 +1,11 @@
 @inject AuthSessionState AuthState
 
-@if (AuthState.IsInitializing)
+@if (AuthState.IsBusy)
 {
-    <div class="spinner"></div>
+    <div class="auth-loading">
+        <div class="spinner"></div>
+        <p class="form-hint">Finishing sign-in...</p>
+    </div>
 }
 else if (!AuthState.IsAuthenticated)
 {

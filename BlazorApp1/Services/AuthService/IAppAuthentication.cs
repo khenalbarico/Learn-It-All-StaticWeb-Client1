@@ -4,6 +4,7 @@ namespace BlazorApp1.Services.AuthService;
 
 public interface IAppAuthentication
 {
+    event Action? StateChanged;
     Task<bool> IsAuthenticatedAsync();
     Task<AuthResult> GetAuthAsync();
     void SignIn(string returnUrl);

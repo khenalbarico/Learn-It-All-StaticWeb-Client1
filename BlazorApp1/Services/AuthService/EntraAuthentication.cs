@@ -6,8 +6,25 @@ using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 
 namespace BlazorApp1.Services.AuthService;
 
-public class EntraAuthentication(AuthenticationStateProvider _stateProvider, IAccessTokenProvider _tokenProvider, NavigationManager _nav) : IAppAuthentication
+public class EntraAuthentication : IAppAuthentication, IDisposable
 {
+    private readonly AuthenticationStateProvider _stateProvider;
+    private readonly IAccessTokenProvider _tokenProvider;
+    private readonly NavigationManager _nav;
+
+    public event Action? StateChanged;
+
+    public EntraAuthentication(AuthenticationStateProvider stateProvider, IAccessTokenProvider tokenProvider, NavigationManager nav)
+    {
+        _stateProvider = stateProvider;
+        _tokenProvider = tokenProvider;
+        _nav = nav;
+        _stateProvider.AuthenticationStateChanged += HandleAuthenticationStateChanged;
+    }
+
+    private void HandleAuthenticationStateChanged(Task<AuthenticationState> _)
+        => StateChanged?.Invoke();
+
     public async Task<bool> IsAuthenticatedAsync()
     {
         var state = await _stateProvider.GetAuthenticationStateAsync();
@@ -45,6 +62,9 @@ public class EntraAuthentication(AuthenticationStateProvider _stateProvider, IAc
 
     public void SignOut(string returnUrl)
         => _nav.NavigateToLogout("authentication/logout", returnUrl);
+
+    public void Dispose()
+        => _stateProvider.AuthenticationStateChanged -= HandleAuthenticationStateChanged;
 
     private static string? FindClaim(ClaimsPrincipal user, string claimType)
         => user.FindFirst(claimType)?.Value;

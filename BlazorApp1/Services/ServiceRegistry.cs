@@ -12,7 +12,7 @@ public static class ServiceRegistry
     {
         services.AddSingleton<IAdSenseCfg, AdSenseWebCfg>();
         services.AddSingleton<JsInteropService>();
-        services.AddSingleton<IAppAuthentication, EntraAuthentication>();
+        services.AddScoped<IAppAuthentication, EntraAuthentication>();
 
         services.AddSingleton<IApiUrlGetter, ApiUrlGetter>();
         services.AddHttpClient("LearnItAllApi", (sp, client) =>
@@ -24,15 +24,15 @@ public static class ServiceRegistry
             client.Timeout     = TimeSpan.FromSeconds(20);
             client.DefaultRequestHeaders.Add("Accept", "application/json");
         });
-        services.AddSingleton<IApiClient>(sp => new ApiClient(
+        services.AddScoped<IApiClient>(sp => new ApiClient(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("LearnItAllApi"),
             sp.GetRequiredService<IAppAuthentication>()));
 
-        services.AddSingleton<IAppService, AppService>();
-        services.AddSingleton<IPaymentService, PaymentService>();
+        services.AddScoped<IAppService, AppService>();
+        services.AddScoped<IPaymentService, PaymentService>();
         services.AddSingleton<LibraryCacheService>();
         services.AddSingleton<ThemeService>();
-        services.AddSingleton<AuthSessionState>();
+        services.AddScoped<AuthSessionState>();
 
         return services;
     }

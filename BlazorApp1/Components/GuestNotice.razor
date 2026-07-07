@@ -1,4 +1,4 @@
-@inject NavigationManager Nav
+@inject AuthSessionState AuthState
 
 <div class="centered-notice card">
     <div class="icon-badge">
@@ -6,7 +6,7 @@
     </div>
     <h2>@Title</h2>
     <p class="form-hint">@Message</p>
-    <button class="btn btn-primary" @onclick="GoToAuth">
+    <button class="btn btn-primary" @onclick="AuthState.OpenSignInModal">
         <Icon Name="user" Size="16" />
         Log In / Register
     </button>
@@ -15,6 +15,4 @@
 @code {
     [Parameter] public string Title { get; set; } = "Authenticate to access this view";
     [Parameter] public string Message { get; set; } = "Sign in or create a free account to continue.";
-
-    private void GoToAuth() => Nav.NavigateTo("/auth");
 }
