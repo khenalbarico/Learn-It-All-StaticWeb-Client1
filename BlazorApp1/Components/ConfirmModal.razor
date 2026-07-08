@@ -1,0 +1,36 @@
+@if (IsOpen)
+{
+    <div class="modal-backdrop" @onclick="Close">
+        <div class="modal-box" @onclick:stopPropagation="true">
+            <div class="icon-badge">
+                <Icon Name="@IconName" Size="28" />
+            </div>
+            <h3>@Title</h3>
+            <p class="form-hint">@Message</p>
+            <button class="btn btn-primary btn-block" @onclick="Confirm">@ConfirmLabel</button>
+            <button class="btn btn-ghost btn-block" @onclick="Close">Cancel</button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public string Title { get; set; } = "Are you sure?";
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public string ConfirmLabel { get; set; } = "Confirm";
+    [Parameter] public string IconName { get; set; } = "alert";
+    [Parameter] public EventCallback OnConfirm { get; set; }
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+
+    private async Task Confirm()
+    {
+        await Close();
+        await OnConfirm.InvokeAsync();
+    }
+}

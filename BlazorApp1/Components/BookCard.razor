@@ -23,6 +23,10 @@
         {
             <div class="book-card-meta">@MetaText</div>
         }
+        @if (!string.IsNullOrWhiteSpace(Description))
+        {
+            <p class="book-card-description">@Description</p>
+        }
         @if (ShowFooter)
         {
             <div class="book-card-footer">
@@ -67,6 +71,7 @@
     [Parameter] public string Title { get; set; } = "";
     [Parameter] public string? CoverImageUrl { get; set; }
     [Parameter] public string? MetaText { get; set; }
+    [Parameter] public string? Description { get; set; }
     [Parameter] public decimal Price { get; set; }
     [Parameter] public decimal? PremiumPrice { get; set; }
     [Parameter] public bool IsOwned { get; set; }
