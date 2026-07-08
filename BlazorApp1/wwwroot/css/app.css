@@ -201,18 +201,6 @@ h1:focus-visible {
     animation: fadeInUp var(--duration-slow) var(--ease-out) both;
 }
 
-.form-container {
-    max-width: 420px;
-    margin: 2rem auto 3rem;
-    padding: 2.25rem 1.75rem 2.5rem;
-    border-radius: var(--radius-lg);
-    background-color: var(--color-surface);
-    background-image: var(--gradient-mesh);
-    border: 1px solid var(--color-border);
-    box-shadow: var(--shadow-md);
-    animation: fadeInUp var(--duration-slow) var(--ease-out) both;
-}
-
 .card {
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -1643,11 +1631,6 @@ code {
         padding: 1.4rem;
     }
 
-    .form-container {
-        margin: 1rem auto 2rem;
-        padding: 1.75rem 1.25rem 2rem;
-    }
-
     .home-hero {
         padding: 2rem 1rem;
     }
@@ -2185,9 +2168,15 @@ code {
 .auth-callback-page {
     display: flex;
     flex: 1;
-    min-height: 50vh;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    min-height: 50vh;
+    max-width: 420px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 1rem;
+    text-align: center;
 }
 
     .auth-loading .spinner {
