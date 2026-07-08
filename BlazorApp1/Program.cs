@@ -18,7 +18,14 @@ builder.Services.AddMsalAuthentication(options =>
     options.ProviderOptions.LoginMode = "redirect";
 });
 
-var apiEnvironment = builder.Configuration["ApiEnvironment"] ?? "Dev";
+var browserHost = new Uri(builder.HostEnvironment.BaseAddress).Host;
+var apiEnvironment = browserHost switch
+{
+    "localhost"                                    => "localhost",
+    "gentle-hill-0630fc410.7.azurestaticapps.net"   => "dev",
+    "gentle-wave-04a543e10.7.azurestaticapps.net"   => "prod",
+    _                                               => "prod"
+};
 builder.Services.AddLearnItAllServices(apiEnvironment);
 
 var host = builder.Build();
