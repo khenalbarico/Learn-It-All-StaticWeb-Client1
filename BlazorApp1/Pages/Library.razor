@@ -55,6 +55,7 @@
                               CoverImageUrl="@book.CoverImageUrl"
                               Price="@book.Price"
                               PremiumPrice="@book.PremiumPrice"
+                              IsOwned="@IsOwned(book.Uid)"
                               IsPremiumOwned="@IsPremiumOwned(book.Uid)"
                               ShowPrice="@(!IsOwned(book.Uid))"
                               ActionLabel="@(IsOwned(book.Uid) ? "Owned" : "Buy")"

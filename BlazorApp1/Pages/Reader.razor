@@ -50,38 +50,6 @@
                 </select>
             }
 
-            @if (!_loading && _error is null && _totalPages > 0)
-            {
-                <div class="reader-pagenav">
-                    <button class="btn btn-ghost btn-sm reader-pagenav-btn" @onclick="PrevPage" disabled="@(_currentPage <= 1)" aria-label="Previous page">
-                        <Icon Name="chevron-left" Size="16" />
-                    </button>
-                    <span class="reader-page-indicator">@_currentPage / @_totalPages</span>
-                    <button class="btn btn-ghost btn-sm reader-pagenav-btn" @onclick="NextPage" disabled="@(_currentPage >= _totalPages)" aria-label="Next page">
-                        <Icon Name="chevron-right" Size="16" />
-                    </button>
-                </div>
-
-                <div class="reader-zoomnav">
-                    <button class="btn btn-ghost btn-sm reader-pagenav-btn" @onclick="ZoomOut" disabled="@(_zoom <= MinZoom)" aria-label="Zoom out">
-                        <Icon Name="zoom-out" Size="16" />
-                    </button>
-                    <span class="reader-page-indicator">@((_zoom * 100).ToString("0"))%</span>
-                    <button class="btn btn-ghost btn-sm reader-pagenav-btn" @onclick="ZoomIn" disabled="@(_zoom >= MaxZoom)" aria-label="Zoom in">
-                        <Icon Name="zoom-in" Size="16" />
-                    </button>
-                </div>
-
-                <form class="reader-pagejump" @onsubmit="SubmitPageJump" @onsubmit:preventDefault="true">
-                    <input type="number" class="reader-pagejump-input" min="1" max="@_totalPages"
-                           placeholder="@_currentPage" value="@_pageJumpInput"
-                           @oninput="OnPageJumpInput" disabled="@_loading"
-                           aria-label="Jump to page" title="Jump to a specific page" />
-                    <button type="submit" class="btn btn-ghost btn-sm reader-pagenav-btn" aria-label="Jump to page" title="Jump to page">
-                        <Icon Name="check" Size="16" />
-                    </button>
-                </form>
-            }
         </div>
 
         <AdUnit SlotId="@AdCfg.ReaderSlotId" CssClass="ad-reader-strip" />
@@ -100,6 +68,36 @@
             </div>
         }
         <div class="reader-frame" id="@_containerId" style="@(_loading || _error is not null ? "display:none" : null)"></div>
+
+        @if (!_loading && _error is null && _totalPages > 0)
+        {
+            <div class="reader-controls">
+                <button class="btn btn-ghost reader-pagenav-btn" @onclick="PrevPage" disabled="@(_currentPage <= 1)" aria-label="Previous page">
+                    <Icon Name="chevron-left" Size="18" />
+                </button>
+
+                <form class="reader-controls-page" @onsubmit="CommitPageInput" @onsubmit:preventDefault="true">
+                    <input type="number" class="reader-pagejump-input" min="1" max="@_totalPages"
+                           value="@_currentPage" @onchange="OnPageInputChanged"
+                           aria-label="Current page, type to jump" title="Type a page number and press Enter" />
+                    <span class="reader-controls-total">/ @_totalPages</span>
+                </form>
+
+                <button class="btn btn-ghost reader-pagenav-btn" @onclick="NextPage" disabled="@(_currentPage >= _totalPages)" aria-label="Next page">
+                    <Icon Name="chevron-right" Size="18" />
+                </button>
+
+                <div class="reader-controls-divider"></div>
+
+                <button class="btn btn-ghost reader-pagenav-btn" @onclick="ZoomOut" disabled="@(_zoom <= MinZoom)" aria-label="Zoom out">
+                    <Icon Name="zoom-out" Size="18" />
+                </button>
+                <span class="reader-controls-total reader-zoom-value">@((_zoom * 100).ToString("0"))%</span>
+                <button class="btn btn-ghost reader-pagenav-btn" @onclick="ZoomIn" disabled="@(_zoom >= MaxZoom)" aria-label="Zoom in">
+                    <Icon Name="zoom-in" Size="18" />
+                </button>
+            </div>
+        }
     </AuthGate>
 </div>
 
@@ -124,7 +122,7 @@
     private double _zoom = 1.0;
     private string? _loadedForKey;
     private CancellationTokenSource? _progressSaveCts;
-    private string _pageJumpInput = "";
+    private string _pageInputValue = "";
 
     protected override async Task OnParametersSetAsync()
     {
@@ -223,14 +221,18 @@
         StateHasChanged();
     }
 
-    private void OnPageJumpInput(ChangeEventArgs e) => _pageJumpInput = e.Value?.ToString() ?? "";
-
-    private async Task SubmitPageJump()
+    private async Task OnPageInputChanged(ChangeEventArgs e)
     {
-        if (int.TryParse(_pageJumpInput, out var page))
+        _pageInputValue = e.Value?.ToString() ?? "";
+        await CommitPageInput();
+    }
+
+    private async Task CommitPageInput()
+    {
+        if (int.TryParse(_pageInputValue, out var page) && page != _currentPage)
             await GoToPage(page);
 
-        _pageJumpInput = "";
+        _pageInputValue = "";
     }
 
     private async Task ZoomIn()

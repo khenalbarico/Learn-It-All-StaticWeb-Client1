@@ -597,6 +597,29 @@ h1:focus-visible {
     background-color: var(--color-surface-alt);
 }
 
+.book-card-owned-badge {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-pill);
+    background-color: var(--color-success);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    z-index: 1;
+}
+
+    .book-card-owned-badge.is-premium {
+        background-image: linear-gradient(120deg, #b8860b, #ffb300);
+        color: #fff;
+    }
+
 .book-card-favorite {
     position: absolute;
     top: 0.5rem;
@@ -895,6 +918,7 @@ h1:focus-visible {
     display: flex;
     justify-content: center;
     touch-action: pan-x pan-y;
+    padding-bottom: 4.5rem;
 }
 
     .reader-frame canvas {
@@ -904,24 +928,51 @@ h1:focus-visible {
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
     }
 
-.reader-pagenav,
-.reader-zoomnav {
+.reader-controls {
+    position: fixed;
+    bottom: 1.1rem;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.25rem;
+    padding: 0.45rem 0.75rem;
+    border-radius: var(--radius-pill);
+    background-color: color-mix(in srgb, var(--color-surface) 88%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-lg);
+    z-index: 50;
+    max-width: calc(100vw - 1rem);
+    animation: fadeInUp var(--duration-slow) var(--ease-out) both;
 }
 
-.reader-zoomnav {
-    padding-left: 0.5rem;
-    border-left: 1px solid var(--color-border);
-}
-
-.reader-pagejump {
+.reader-controls-page {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
-    padding-left: 0.5rem;
-    border-left: 1px solid var(--color-border);
+    gap: 0.3rem;
+    margin: 0;
+}
+
+.reader-controls-total {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.reader-zoom-value {
+    min-width: 2.9rem;
+    text-align: center;
+}
+
+.reader-controls-divider {
+    width: 1px;
+    align-self: stretch;
+    background-color: var(--color-border);
+    margin: 0 0.3rem;
 }
 
 .reader-pagejump-input {
@@ -979,8 +1030,18 @@ h1:focus-visible {
         max-width: 140px;
     }
 
+    .reader-controls {
+        bottom: 0.75rem;
+        gap: 0.15rem;
+        padding: 0.35rem 0.55rem;
+    }
+
     .reader-pagejump-input {
         width: 2.8rem;
+    }
+
+    .reader-zoom-value {
+        display: none;
     }
 }
 
@@ -2064,6 +2125,10 @@ code {
     max-width: 400px;
 }
 
+    .signin-modal .btn-block + .btn-block {
+        margin-top: 0.6rem;
+    }
+
 .signin-logo {
     width: 72px;
     height: 72px;
@@ -2115,6 +2180,14 @@ code {
     align-items: center;
     padding: 2rem 1rem;
     text-align: center;
+}
+
+.auth-callback-page {
+    display: flex;
+    flex: 1;
+    min-height: 50vh;
+    align-items: center;
+    justify-content: center;
 }
 
     .auth-loading .spinner {

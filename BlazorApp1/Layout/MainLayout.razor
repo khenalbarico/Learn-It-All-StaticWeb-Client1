@@ -1,5 +1,7 @@
 @inherits LayoutComponentBase
 @inject IAdSenseCfg AdCfg
+@inject AuthSessionState AuthState
+@inject NavigationManager Nav
 
 <NavMenu />
 
@@ -11,5 +13,19 @@
 
 <Footer />
 
-<SignInModal />
-<ProfileSetupModal />
+@if (!IsAuthCallbackRoute)
+{
+    <SignInModal />
+    <ProfileSetupModal />
+}
+
+@code {
+    private bool IsAuthCallbackRoute
+        => Nav.ToBaseRelativePath(Nav.Uri).StartsWith("authentication", StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnInitialized()
+    {
+        if (!AuthState.IsBusy && !AuthState.IsAuthenticated && !IsAuthCallbackRoute)
+            AuthState.OpenSignInModal();
+    }
+}
