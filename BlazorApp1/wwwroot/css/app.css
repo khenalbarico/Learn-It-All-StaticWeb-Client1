@@ -196,6 +196,7 @@ h1:focus-visible {
 
 .page-container {
     max-width: 1100px;
+    width: 100%;
     margin: 0 auto;
     padding: 1.5rem 1.25rem 3rem;
     animation: fadeInUp var(--duration-slow) var(--ease-out) both;
@@ -544,16 +545,19 @@ h1:focus-visible {
         animation-delay: calc(var(--card-index, 0) * 45ms);
     }
 
-    .book-row-scroll::-webkit-scrollbar {
+    .book-row-scroll::-webkit-scrollbar,
+    .book-grid::-webkit-scrollbar {
         height: 6px;
     }
 
-    .book-row-scroll::-webkit-scrollbar-thumb {
+    .book-row-scroll::-webkit-scrollbar-thumb,
+    .book-grid::-webkit-scrollbar-thumb {
         background-color: var(--color-border);
         border-radius: var(--radius-pill);
     }
 
-    .book-row-scroll::-webkit-scrollbar-track {
+    .book-row-scroll::-webkit-scrollbar-track,
+    .book-grid::-webkit-scrollbar-track {
         background: transparent;
     }
 
@@ -674,6 +678,18 @@ h1:focus-visible {
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     line-clamp: 2;
+}
+
+.book-card-description {
+    font-size: 0.8rem;
+    line-height: 1.35;
+    color: var(--color-text-muted);
+    margin: 0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
 }
 
 .book-card-footer {
@@ -1608,10 +1624,21 @@ code {
         padding: 1rem 1rem 2.5rem;
     }
 
-    .book-grid {
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    .book-grid:not(.modal-book-grid) {
+        display: flex;
         gap: 0.85rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x proximity;
+        padding-bottom: 0.6rem;
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-border) transparent;
     }
+
+        .book-grid:not(.modal-book-grid) > * {
+            flex: 0 0 150px;
+            scroll-snap-align: start;
+        }
 
     .book-row-scroll {
         gap: 0.85rem;
@@ -1661,7 +1688,15 @@ code {
         padding: 2rem 1rem;
     }
 
-    .book-grid {
+    .book-grid:not(.modal-book-grid) {
+        gap: 0.65rem;
+    }
+
+        .book-grid:not(.modal-book-grid) > * {
+            flex-basis: 120px;
+        }
+
+    .book-grid.modal-book-grid {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
         gap: 0.65rem;
     }

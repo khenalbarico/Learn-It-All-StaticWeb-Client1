@@ -26,5 +26,145 @@
     "Price": 14.0,
     "Description": "A focused refresher covering the topics most tested on the nursing licensure exam.",
     "Category": "Reviewer"
+  },
+  {
+    "Title": "Principles of Economics",
+    "CoverImage": "imgs/cover_imgs/Principles of Economics.png",
+    "Price": 11.5,
+    "Description": "An accessible introduction to micro and macroeconomics for undergraduate students.",
+    "Category": "CollegeCourse"
+  },
+  {
+    "Title": "Organic Chemistry Made Simple",
+    "CoverImage": "imgs/cover_imgs/Organic Chemistry Made Simple.png",
+    "Price": 13.25,
+    "Description": "Breaks down reaction mechanisms and nomenclature with plenty of diagrams.",
+    "Category": "CollegeCourse"
+  },
+  {
+    "Title": "Introduction to Psychology",
+    "CoverImage": "imgs/cover_imgs/Introduction to Psychology.png",
+    "Price": 10.99,
+    "Description": "Covers the fundamentals of human behavior, cognition, and development.",
+    "Category": "CollegeCourse"
+  },
+  {
+    "Title": "Calculus I: Limits and Derivatives",
+    "CoverImage": "imgs/cover_imgs/Calculus I Limits and Derivatives.png",
+    "Price": 12.0,
+    "Description": "Step-by-step coverage of limits, continuity, and differentiation for beginners.",
+    "Category": "CollegeCourse"
+  },
+  {
+    "Title": "Fundamentals of Accounting",
+    "CoverImage": "imgs/cover_imgs/Fundamentals of Accounting.png",
+    "Price": 11.0,
+    "Description": "Introduces the accounting cycle, financial statements, and basic bookkeeping.",
+    "Category": "CollegeCourse"
+  },
+  {
+    "Title": "Physics for Engineers",
+    "CoverImage": "imgs/cover_imgs/Physics for Engineers.png",
+    "Price": 13.5,
+    "Description": "Applies mechanics, thermodynamics, and electromagnetism to real engineering problems.",
+    "Category": "CollegeCourse"
+  },
+  {
+    "Title": "Database Management Systems",
+    "CoverImage": "imgs/cover_imgs/Database Management Systems.png",
+    "Price": 12.75,
+    "Description": "Covers relational design, normalization, and SQL for computer science students.",
+    "Category": "CollegeCourse"
+  },
+  {
+    "Title": "Technical Writing for Students",
+    "CoverImage": "imgs/cover_imgs/Technical Writing for Students.png",
+    "Price": 9.5,
+    "Description": "Practical guidance on writing clear reports, proposals, and documentation.",
+    "Category": "CollegeCourse"
+  },
+  {
+    "Title": "Philippine History and Government",
+    "CoverImage": "imgs/cover_imgs/Philippine History and Government.png",
+    "Price": 10.0,
+    "Description": "Traces the country's political history from precolonial times to the present.",
+    "Category": "CollegeCourse"
+  },
+  {
+    "Title": "Statistics and Probability",
+    "CoverImage": "imgs/cover_imgs/Statistics and Probability.png",
+    "Price": 11.25,
+    "Description": "Builds a solid foundation in probability theory and statistical inference.",
+    "Category": "CollegeCourse"
+  },
+  {
+    "Title": "Civil Engineering Board Exam Reviewer",
+    "CoverImage": "imgs/cover_imgs/Civil Engineering Board Exam Reviewer.png",
+    "Price": 15.0,
+    "Description": "High-yield review of structural, geotechnical, and hydraulics topics for the board exam.",
+    "Category": "Reviewer"
+  },
+  {
+    "Title": "LET Reviewer for Elementary Teachers",
+    "CoverImage": "imgs/cover_imgs/LET Reviewer for Elementary Teachers.png",
+    "Price": 9.75,
+    "Description": "Covers general education and professional education topics for the LET.",
+    "Category": "Reviewer"
+  },
+  {
+    "Title": "CPA Board Exam Quick Notes",
+    "CoverImage": "imgs/cover_imgs/CPA Board Exam Quick Notes.png",
+    "Price": 14.5,
+    "Description": "Condensed notes on auditing, taxation, and financial accounting for CPA candidates.",
+    "Category": "Reviewer"
+  },
+  {
+    "Title": "Criminology Licensure Reviewer",
+    "CoverImage": "imgs/cover_imgs/Criminology Licensure Reviewer.png",
+    "Price": 10.25,
+    "Description": "Reviews criminal law, criminology theories, and law enforcement administration.",
+    "Category": "Reviewer"
+  },
+  {
+    "Title": "Bar Exam Essentials: Civil Law",
+    "CoverImage": "imgs/cover_imgs/Bar Exam Essentials Civil Law.png",
+    "Price": 16.0,
+    "Description": "A distilled review of civil law principles frequently tested in the bar exam.",
+    "Category": "Reviewer"
+  },
+  {
+    "Title": "Physical Therapy Licensure Review",
+    "CoverImage": "imgs/cover_imgs/Physical Therapy Licensure Review.png",
+    "Price": 13.0,
+    "Description": "Covers kinesiology, therapeutic exercise, and patient care for the licensure exam.",
+    "Category": "Reviewer"
+  },
+  {
+    "Title": "Electrical Engineering Board Reviewer",
+    "CoverImage": "imgs/cover_imgs/Electrical Engineering Board Reviewer.png",
+    "Price": 15.25,
+    "Description": "Focused review of circuits, power systems, and electronics for REE/RME candidates.",
+    "Category": "Reviewer"
+  },
+  {
+    "Title": "Medical Technology Licensure Reviewer",
+    "CoverImage": "imgs/cover_imgs/Medical Technology Licensure Reviewer.png",
+    "Price": 12.5,
+    "Description": "Reviews clinical chemistry, hematology, and microbiology for med tech licensure.",
+    "Category": "Reviewer"
+  },
+  {
+    "Title": "Architecture Licensure Exam Guide",
+    "CoverImage": "imgs/cover_imgs/Architecture Licensure Exam Guide.png",
+    "Price": 14.75,
+    "Description": "Covers design, building technology, and professional practice for aspiring architects.",
+    "Category": "Reviewer"
+  },
+  {
+    "Title": "Customs Broker Licensure Reviewer",
+    "CoverImage": "imgs/cover_imgs/Customs Broker Licensure Reviewer.png",
+    "Price": 11.75,
+    "Description": "Covers tariff laws, customs procedures, and trade regulations for the licensure exam.",
+    "Category": "Reviewer"
   }
 ]
