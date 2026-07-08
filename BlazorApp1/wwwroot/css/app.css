@@ -889,6 +889,32 @@ h1:focus-visible {
     max-width: 200px;
 }
 
+.reader-doc-switch {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    text-align: left;
+}
+
+    .reader-doc-switch .icon {
+        flex-shrink: 0;
+        color: var(--color-text-muted);
+    }
+
+.reader-doc-switch-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reader-doc-switch-badge {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.4rem;
+}
+
 .reader-status {
     flex: 1;
     display: flex;

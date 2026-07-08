@@ -32,12 +32,14 @@
 
             @if (_book is not null && _book.Documents.Count > 1)
             {
-                <select class="reader-select" value="@DocUid" @onchange="OnDocumentChanged" disabled="@_loading">
-                    @foreach (var doc in _book.Documents)
+                <button class="btn reader-select reader-doc-switch" @onclick="() => _docListOpen = true" disabled="@_loading" aria-label="Switch document">
+                    <span class="reader-doc-switch-title">@(string.IsNullOrWhiteSpace(_currentDoc?.Title) ? "Document" : _currentDoc.Title)</span>
+                    @if (_currentDoc?.IsPremium == true)
                     {
-                        <option value="@doc.Uid">@(string.IsNullOrWhiteSpace(doc.Title) ? "Document" : doc.Title)</option>
+                        <span class="badge badge-premium reader-doc-switch-badge">★</span>
                     }
-                </select>
+                    <Icon Name="chevron-down" Size="14" />
+                </button>
             }
 
             @if (_libraryBooks.Count > 1)
@@ -101,6 +103,18 @@
     </AuthGate>
 </div>
 
+<DocumentListModal @bind-IsOpen="_docListOpen"
+                    BookTitle="@(_book?.Title ?? "")"
+                    Documents="@(_book?.Documents ?? [])"
+                    OwnsPremium="@OwnsPremium"
+                    HasPremiumTier="@(_book?.PremiumPrice is not null)"
+                    OnDocumentSelected="OnDocumentSelectedFromModal"
+                    OnUpgradeClick="OnUpgradeFromModal" />
+
+<BuyBookModal @bind-IsOpen="_upgradeModalOpen"
+              Items="_upgradeItems"
+              OnPurchased="OnUpgradePurchased" />
+
 @code {
     [Parameter] public string BookUid { get; set; } = "";
     [Parameter] public string DocUid { get; set; } = "";
@@ -123,6 +137,11 @@
     private string? _loadedForKey;
     private CancellationTokenSource? _progressSaveCts;
     private string _pageInputValue = "";
+    private bool _docListOpen;
+    private bool _upgradeModalOpen;
+    private List<CheckoutItem> _upgradeItems = [];
+
+    private bool OwnsPremium => _libraryEntry?.IsPremium ?? false;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -278,11 +297,37 @@
         _ = AuthState.RefreshProfileAsync();
     }
 
-    private void OnDocumentChanged(ChangeEventArgs e)
+    private void OnDocumentSelectedFromModal(BookDocs doc)
     {
-        var newDocUid = e.Value?.ToString();
-        if (string.IsNullOrWhiteSpace(newDocUid) || newDocUid == DocUid) return;
-        Nav.NavigateTo($"/read/{BookUid}/{newDocUid}");
+        if (doc.Uid == DocUid) return;
+        Nav.NavigateTo($"/read/{BookUid}/{doc.Uid}");
+    }
+
+    private void OnUpgradeFromModal()
+    {
+        if (_book is null || _book.PremiumPrice is null) return;
+
+        _upgradeItems =
+        [
+            new CheckoutItem(
+                _book.Uid,
+                $"{_book.Title ?? "Untitled"} — Premium Upgrade",
+                _book.ImageCoverUrl,
+                _book.Price,
+                _book.Description,
+                _book.PremiumPrice,
+                IsPremium: true,
+                IsUpgrade: true)
+        ];
+        _upgradeModalOpen = true;
+    }
+
+    private async Task OnUpgradePurchased()
+    {
+        LibraryCache.InvalidateMyLibrary();
+        await AuthState.RefreshProfileAsync();
+        await EnsureLibraryLoadedAsync();
+        StateHasChanged();
     }
 
     private void OnBookChanged(ChangeEventArgs e)
