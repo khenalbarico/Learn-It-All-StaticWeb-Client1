@@ -1,0 +1,53 @@
+@page "/authentication/{action}"
+
+<PageTitle>Signing In - Learn It All</PageTitle>
+
+<div class="auth-callback-page">
+    <RemoteAuthenticatorView Action="@Action">
+        <LoggingIn>
+            <div class="auth-loading">
+                <div class="spinner"></div>
+                <p class="form-hint">Signing you in...</p>
+            </div>
+        </LoggingIn>
+        <CompletingLoggingIn>
+            <div class="auth-loading">
+                <div class="spinner"></div>
+                <p class="form-hint">Finishing sign-in...</p>
+            </div>
+        </CompletingLoggingIn>
+        <LogOut>
+            <div class="auth-loading">
+                <div class="spinner"></div>
+                <p class="form-hint">Signing you out...</p>
+            </div>
+        </LogOut>
+        <CompletingLogOut>
+            <div class="auth-loading">
+                <div class="spinner"></div>
+                <p class="form-hint">Finishing sign-out...</p>
+            </div>
+        </CompletingLogOut>
+        <LogOutSucceeded>
+            <div class="auth-loading">
+                <div class="spinner"></div>
+                <p class="form-hint">You've been signed out.</p>
+            </div>
+        </LogOutSucceeded>
+        <LogInFailed>
+            <div class="auth-loading">
+                <p class="form-error">Sign-in did not complete. Please try again.</p>
+            </div>
+        </LogInFailed>
+        <LogOutFailed>
+            <div class="auth-loading">
+                <p class="form-error">Sign-out did not complete. Please try again.</p>
+            </div>
+        </LogOutFailed>
+    </RemoteAuthenticatorView>
+</div>
+
+
+@code {
+    [Parameter] public string? Action { get; set; }
+}

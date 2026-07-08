@@ -1,0 +1,36 @@
+@inject AuthSessionState AuthState
+
+@if (IsOpen)
+{
+    <div class="modal-backdrop" @onclick="Close">
+        <div class="modal-box" @onclick:stopPropagation="true">
+            <div class="icon-badge">
+                <Icon Name="lock" Size="28" />
+            </div>
+            <h3>Log in to buy this book</h3>
+            <p class="form-hint">You need to be logged in to purchase books. Log in or create an account to continue.</p>
+            <button class="btn btn-primary btn-block" @onclick="GoToLogin">
+                <Icon Name="user" Size="16" />
+                Log In
+            </button>
+            <button class="btn btn-ghost btn-block" @onclick="Close">Cancel</button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+
+    private async Task GoToLogin()
+    {
+        await Close();
+        AuthState.OpenSignInModal();
+    }
+}

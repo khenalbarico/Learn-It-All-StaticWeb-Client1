@@ -8,21 +8,79 @@
         <div class="modal-box qr-modal" @onclick:stopPropagation="true">
             @if (_stage == Stage.Details)
             {
-                <img class="book-detail-cover" src="@ResolvedCover" alt="@BookTitle cover" />
-                <h3>@BookTitle</h3>
-                <p class="form-hint book-detail-desc">@BookDescription</p>
-                <div class="book-detail-price">₱@BookPrice.ToString("N2")</div>
-                <button class="btn btn-primary btn-block" @onclick="StartAsync" disabled="@_guard.IsBusy">Confirm Purchase</button>
+                @if (Items.Count == 1)
+                {
+                    <div class="book-detail-cover-wrap @(_premiumSelected ? "premium-active" : "")">
+                        <div class="premium-glow"></div>
+                        <div class="stack-page stack-page-1"></div>
+                        <div class="stack-page stack-page-2"></div>
+                        <div class="stack-page stack-page-3"></div>
+                        <img class="book-detail-cover" src="@ResolveCover(Items[0].CoverUrl)" alt="@Items[0].Title cover" />
+                    </div>
+                    @if (_premiumSelected && Items[0].PremiumPrice is not null)
+                    {
+                        <p class="premium-callout">★ Unlocks extra bonus PDFs included with this book</p>
+                    }
+                    <h3>@Items[0].Title</h3>
+                    @if (!string.IsNullOrWhiteSpace(Items[0].Description))
+                    {
+                        <p class="form-hint book-detail-desc">@Items[0].Description</p>
+                    }
+                    @if (Items[0].IsUpgrade)
+                    {
+                        <span class="badge badge-premium">★ Premium Upgrade</span>
+                        <p class="form-hint">Unlocks the premium inclusions of this book. You pay only the difference.</p>
+                    }
+                    else if (Items[0].PremiumPrice is decimal premiumPrice)
+                    {
+                        <div class="tier-options">
+                            <button class="tier-option @(!_premiumSelected ? "selected" : "")" @onclick="() => _premiumSelected = false">
+                                <span class="tier-option-name">Regular</span>
+                                <span class="tier-option-price">₱@Items[0].Price.ToString("N2")</span>
+                            </button>
+                            <button class="tier-option tier-option-premium @(_premiumSelected ? "selected" : "")" @onclick="() => _premiumSelected = true">
+                                <span class="tier-option-name">★ Premium</span>
+                                <span class="tier-option-price">₱@premiumPrice.ToString("N2")</span>
+                                <span class="tier-option-hint">Includes bonus content</span>
+                            </button>
+                        </div>
+                    }
+                    <div class="book-detail-price">₱@TotalPrice.ToString("N2")</div>
+                }
+                else
+                {
+                    <h3>Checkout (@Items.Count books)</h3>
+                    <div class="checkout-items">
+                        @foreach (var item in Items)
+                        {
+                            <div class="checkout-item">
+                                <img class="checkout-item-cover" src="@ResolveCover(item.CoverUrl)" alt="@item.Title cover" />
+                                <span class="checkout-item-title">@item.Title</span>
+                                <span class="checkout-item-price">₱@item.EffectivePrice.ToString("N2")</span>
+                            </div>
+                        }
+                    </div>
+                    <div class="checkout-total">
+                        <span>Total</span>
+                        <strong>₱@TotalPrice.ToString("N2")</strong>
+                    </div>
+                }
+                <button class="btn btn-primary btn-block" @onclick="StartAsync" disabled="@(_guard.IsBusy || Items.Count == 0)">Confirm Purchase</button>
                 <button class="btn btn-ghost btn-block" @onclick="Close">Cancel</button>
             }
             else
             {
-                <h3>@BookTitle</h3>
+                <h3>@HeaderText</h3>
 
                 @if (_stage == Stage.Loading)
                 {
                     <div class="spinner"></div>
                     <p class="form-hint">Generating your QR code...</p>
+                }
+                else if (_stage == Stage.Verifying)
+                {
+                    <div class="spinner"></div>
+                    <p class="form-hint">Confirming your payment...</p>
                 }
                 else if (_stage == Stage.Error)
                 {
@@ -33,6 +91,7 @@
                 {
                     <p class="form-hint">Scan with any QR Ph-enabled banking or e-wallet app.</p>
                     <img class="qr-image" src="@_qrImageUrl" alt="QR Ph payment code" />
+                    <div class="book-detail-price">₱@_amount.ToString("N2")</div>
                     <div class="qr-countdown">@FormatRemaining()</div>
                     <p class="form-hint">Waiting for payment confirmation...</p>
                     <button class="btn btn-ghost btn-block" @onclick="Close">Cancel</button>
@@ -41,7 +100,7 @@
                 {
                     <div class="icon-badge"><Icon Name="check" Size="28" /></div>
                     <h3>Payment successful!</h3>
-                    <p class="form-hint">@BookTitle has been added to your library.</p>
+                    <p class="form-hint">@SuccessMessage</p>
                     <button class="btn btn-primary btn-block" @onclick="Close">Done</button>
                 }
                 else if (_stage == Stage.Expired)
@@ -78,37 +137,59 @@
 }
 
 @code {
-    private enum Stage { Details, Loading, AwaitingPayment, Succeeded, Failed, Expired, Error }
+    private enum Stage { Details, Loading, AwaitingPayment, Verifying, Succeeded, Failed, Expired, Error }
 
     [Parameter] public bool IsOpen { get; set; }
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
-    [Parameter] public string BookUid { get; set; } = "";
-    [Parameter] public string BookTitle { get; set; } = "";
-    [Parameter] public string? BookDescription { get; set; }
-    [Parameter] public string? BookCoverUrl { get; set; }
-    [Parameter] public decimal BookPrice { get; set; }
+    [Parameter] public List<CheckoutItem> Items { get; set; } = [];
     [Parameter] public EventCallback OnPurchased { get; set; }
 
     private Stage _stage = Stage.Details;
     private string? _qrImageUrl;
     private string? _paymentIntentId;
-    private string? _startedForBookUid;
+    private string? _startedForKey;
     private DateTime _expiresAtUtc;
+    private decimal _amount;
     private string? _error;
     private int _cooldownSeconds;
-    private bool _finalVerifyDone;
     private CancellationTokenSource? _cts;
     private readonly SubmitGuard _guard = new();
 
-    private string ResolvedCover => string.IsNullOrWhiteSpace(BookCoverUrl) ? "imgs/app_logo.png" : BookCoverUrl!;
+    private bool _premiumSelected;
+
+    private decimal TotalPrice => Items.Count == 1
+        ? ItemPrice(Items[0])
+        : Items.Sum(i => i.EffectivePrice);
+
+    private decimal ItemPrice(CheckoutItem item)
+    {
+        if (item.IsUpgrade || item.IsPremium) return item.EffectivePrice;
+        return _premiumSelected && item.PremiumPrice is decimal premium ? premium : item.Price;
+    }
+
+    private List<string> PremiumUids => Items
+        .Where(i => i.IsPremium || (Items.Count == 1 && _premiumSelected && i.PremiumPrice is not null))
+        .Select(i => i.BookUid)
+        .ToList();
+
+    private string HeaderText => Items.Count == 1 ? Items[0].Title : $"{Items.Count} books";
+
+    private string SuccessMessage => Items.Count == 1
+        ? $"{Items[0].Title} has been added to your library."
+        : $"{Items.Count} books have been added to your library.";
+
+    private static string ResolveCover(string? url) => string.IsNullOrWhiteSpace(url) ? "imgs/app_logo.png" : url!;
+
+    private string ItemsKey => string.Join(",", Items.Select(i => i.BookUid));
 
     protected override void OnParametersSet()
     {
-        if (IsOpen && _startedForBookUid != BookUid)
+        if (IsOpen && _startedForKey != ItemsKey)
         {
-            _startedForBookUid = BookUid;
+            _startedForKey = ItemsKey;
             _stage = Stage.Details;
             _error = null;
+            _premiumSelected = Items.Count == 1 && Items[0].IsPremium;
         }
     }
 
@@ -118,15 +199,15 @@
         _cts = new CancellationTokenSource();
         _stage = Stage.Loading;
         _error = null;
-        _finalVerifyDone = false;
         StateHasChanged();
 
         try
         {
-            var result = await PaymentService.CreatePaymentIntent(BookUid);
+            var result = await PaymentService.CreatePaymentIntent(Items.Select(i => i.BookUid).ToList(), PremiumUids);
             _paymentIntentId = result.PaymentIntentId;
             _qrImageUrl = result.QrImageUrl;
             _expiresAtUtc = result.ExpiresAt;
+            _amount = result.Amount;
             _stage = Stage.AwaitingPayment;
 
             _ = PollAsync(_cts.Token);
@@ -164,14 +245,11 @@
             {
                 await Task.Delay(TimeSpan.FromSeconds(4), token);
                 if (token.IsCancellationRequested) return;
-
-                var remaining = _expiresAtUtc - DateTime.UtcNow;
-                var forceVerify = !_finalVerifyDone && remaining <= TimeSpan.FromSeconds(5);
-                if (forceVerify) _finalVerifyDone = true;
+                if (_stage != Stage.AwaitingPayment) return;
 
                 try
                 {
-                    var status = await PaymentService.GetPaymentStatus(_paymentIntentId!, forceVerify);
+                    var status = await PaymentService.GetPaymentStatus(_paymentIntentId!, forceVerify: false);
                     ApplyStatus(status);
                 }
                 catch (Exception)
@@ -194,9 +272,7 @@
             {
                 if (DateTime.UtcNow >= _expiresAtUtc)
                 {
-                    _stage = Stage.Expired;
-                    StartCooldown();
-                    StateHasChanged();
+                    await FinalizeExpiryAsync(token);
                     return;
                 }
 
@@ -209,23 +285,81 @@
         }
     }
 
+    // Local clock hitting zero doesn't mean the payment truly missed the window: the bank/QR
+    // Ph rail may have completed the transfer a moment before expiry, with confirmation still
+    // in flight. Do one authoritative check against PayMongo, then give the server's webhook a
+    // short cheap grace window to land before telling the user the payment was lost.
+    private async Task FinalizeExpiryAsync(CancellationToken token)
+    {
+        _stage = Stage.Verifying;
+        StateHasChanged();
+
+        try
+        {
+            var status = await PaymentService.GetPaymentStatus(_paymentIntentId!, forceVerify: true);
+            ApplyStatus(status);
+        }
+        catch (Exception)
+        {
+            _stage = Stage.Expired;
+            StartCooldown();
+        }
+
+        if (_stage == Stage.Expired)
+        {
+            await GracePollAsync(token);
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task GracePollAsync(CancellationToken token)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(24);
+
+        try
+        {
+            while (!token.IsCancellationRequested && _stage == Stage.Expired && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(4), token);
+                if (token.IsCancellationRequested || _stage != Stage.Expired) return;
+
+                try
+                {
+                    var status = await PaymentService.GetPaymentStatus(_paymentIntentId!, forceVerify: false);
+                    ApplyStatus(status);
+                }
+                catch (Exception)
+                {
+                }
+
+                StateHasChanged();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
     private void ApplyStatus(PaymentStatusResult status)
     {
+        var previousStage = _stage;
+
         _stage = status.Status switch
         {
             "Succeeded" => Stage.Succeeded,
             "Failed" => Stage.Failed,
             "Expired" => Stage.Expired,
-            _ => Stage.AwaitingPayment
+            _ => previousStage == Stage.Verifying ? Stage.Expired : previousStage
         };
 
-        if (_stage == Stage.Succeeded)
+        if (_stage == Stage.Succeeded && previousStage != Stage.Succeeded)
         {
             LibraryCache.InvalidateMyLibrary();
             _ = OnPurchased.InvokeAsync();
         }
 
-        if (_stage is Stage.Expired or Stage.Failed)
+        if (_stage is Stage.Expired or Stage.Failed && previousStage != _stage)
         {
             StartCooldown();
         }
@@ -256,7 +390,7 @@
 
     private async Task CloseIfAllowed()
     {
-        if (_stage is Stage.AwaitingPayment or Stage.Loading) return;
+        if (_stage is Stage.AwaitingPayment or Stage.Loading or Stage.Verifying) return;
         await Close();
     }
 
@@ -264,7 +398,7 @@
     {
         _cts?.Cancel();
         _paymentIntentId = null;
-        _startedForBookUid = null;
+        _startedForKey = null;
         _stage = Stage.Details;
         IsOpen = false;
         await IsOpenChanged.InvokeAsync(false);

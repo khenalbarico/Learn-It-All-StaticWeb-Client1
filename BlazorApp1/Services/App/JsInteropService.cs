@@ -39,16 +39,34 @@ public class JsInteropService(IJSRuntime _jsRuntime)
         return await module.InvokeAsync<bool>("prefersDarkColorScheme");
     }
 
-    public async Task<string> CreatePdfBlobUrlAsync(byte[] bytes)
+    public async Task<int> LoadPdfAsync(string containerId, byte[] bytes)
     {
         var module = await GetModuleAsync();
-        return await module.InvokeAsync<string>("createPdfBlobUrl", bytes);
+        return await module.InvokeAsync<int>("loadPdf", containerId, bytes);
     }
 
-    public async Task RevokeBlobUrlAsync(string url)
+    public async Task<int> GoToPdfPageAsync(string containerId, int pageNum)
     {
         var module = await GetModuleAsync();
-        await module.InvokeVoidAsync("revokeBlobUrl", url);
+        return await module.InvokeAsync<int>("goToPdfPage", containerId, pageNum);
+    }
+
+    public async Task<double> ZoomPdfAsync(string containerId, int delta)
+    {
+        var module = await GetModuleAsync();
+        return await module.InvokeAsync<double>("zoomPdf", containerId, delta);
+    }
+
+    public async Task DisposePdfAsync(string containerId)
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("disposePdf", containerId);
+    }
+
+    public async Task PreloadImagesAsync(IEnumerable<string> urls)
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("preloadImages", urls);
     }
 
     public async Task PushAdsbygoogleAsync()

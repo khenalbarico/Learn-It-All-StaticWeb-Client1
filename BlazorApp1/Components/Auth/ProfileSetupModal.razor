@@ -1,0 +1,28 @@
+@implements IDisposable
+@inject AuthSessionState AuthState
+
+@if (AuthState.NeedsProfileSetup)
+{
+    <div class="modal-backdrop takeover-backdrop">
+        <div class="modal-box profile-setup-modal" @onclick:stopPropagation="true">
+            <div class="icon-badge">
+                <Icon Name="user" Size="28" />
+            </div>
+            <ProfileCollectionForm OnProfileSaved="OnProfileSaved" />
+        </div>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+        => AuthState.OnChange += OnAuthChanged;
+
+    private void OnAuthChanged()
+        => InvokeAsync(StateHasChanged);
+
+    private Task OnProfileSaved()
+        => AuthState.RefreshProfileAsync();
+
+    public void Dispose()
+        => AuthState.OnChange -= OnAuthChanged;
+}

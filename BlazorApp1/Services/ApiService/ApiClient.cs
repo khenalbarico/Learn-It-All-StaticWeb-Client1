@@ -6,19 +6,11 @@ using BlazorApp1.Services.AuthService;
 
 namespace BlazorApp1.Services.ApiService;
 
-public class ApiClient(HttpClient _http, TokenCache _cache, IAppAuthentication _auth) : IApiClient
+public class ApiClient(HttpClient _http, IAppAuthentication _auth) : IApiClient
 {
-    private async Task<AuthResult> ResolveAuthAsync()
-    {
-        if (_cache.TryGet(out var cached) && cached is not null)
-            return cached;
-
-        return await _auth.RefreshAsync();
-    }
-
     private async Task<HttpRequestMessage> BuildRequestAsync(ApiFunctions apiFunction, object? payload = null)
     {
-        var result  = await ResolveAuthAsync();
+        var result  = await _auth.GetAuthAsync();
         var request = new HttpRequestMessage(HttpMethod.Post, ApiRouting.Routes[apiFunction]);
 
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", result.Token);
@@ -49,10 +41,7 @@ public class ApiClient(HttpClient _http, TokenCache _cache, IAppAuthentication _
         var response = await SendOnceAsync(buildRequest);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            _cache.Clear();
             response = await SendOnceAsync(buildRequest);
-        }
 
         return response;
     }

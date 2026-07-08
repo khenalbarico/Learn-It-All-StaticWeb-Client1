@@ -1,27 +1,419 @@
 @page "/"
 @implements IDisposable
 @inject AuthSessionState AuthState
+@inject IAppService AppService
+@inject LibraryCacheService LibraryCache
+@inject JsInteropService JsInterop
+@inject NavigationManager Nav
 
 <PageTitle>Learn It All</PageTitle>
 
 <div class="page-container">
     <AuthGate GuestMessage="Authenticate to access this view.">
-        <div class="centered-notice">
+        <div class="home-hero">
             <img src="imgs/app_logo.png" alt="Learn It All logo" />
             <h1>Welcome@(string.IsNullOrWhiteSpace(AuthState.CurrentUser?.FirstName) ? "" : $", {AuthState.CurrentUser!.FirstName}")!</h1>
-            <p class="form-hint">More is coming to this page soon.</p>
         </div>
+
+        <section class="home-section">
+            <div class="home-section-header">
+                <h2><Icon Name="history" Size="20" /> Continue Reading</h2>
+            </div>
+
+            @if (_libraryLoading)
+            {
+                <div class="book-row-scroll">
+                    @for (var i = 0; i < 3; i++)
+                    {
+                        <BookCardSkeleton />
+                    }
+                </div>
+            }
+            else if (_historyEntries.Count == 0)
+            {
+                <EmptyState Message="Start reading a book from My Library and it'll show up here so you can pick up right where you left off." />
+            }
+            else
+            {
+                <div class="book-row-scroll">
+                    @for (var i = 0; i < _historyEntries.Count; i++)
+                    {
+                        var entry = _historyEntries[i];
+                        <div style="--card-index: @i">
+                            <BookCard Title="@entry.Title"
+                                      CoverImageUrl="@entry.CoverImageUrl"
+                                      MetaText="@entry.MetaText"
+                                      ShowPrice="false"
+                                      ActionLabel="Continue"
+                                      OnActionClick="() => ContinueReading(entry)" />
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="home-section">
+            <div class="home-section-header">
+                <h2><Icon Name="heart-filled" Size="20" /> Your Favorites</h2>
+            </div>
+
+            @if (_libraryLoading)
+            {
+                <div class="book-row-scroll">
+                    @for (var i = 0; i < 3; i++)
+                    {
+                        <BookCardSkeleton />
+                    }
+                </div>
+            }
+            else if (_favoriteBooks.Count == 0)
+            {
+                <EmptyState Message="No favorites yet. Start reading books and tap the heart icon in My Library to add your favorites here." />
+            }
+            else
+            {
+                <div class="book-row-scroll">
+                    @for (var i = 0; i < _favoriteBooks.Count; i++)
+                    {
+                        var book = _favoriteBooks[i];
+                        <div style="--card-index: @i">
+                            <BookCard Title="@(book.Title ?? "Untitled")"
+                                      CoverImageUrl="@book.ImageCoverUrl"
+                                      ShowPrice="false"
+                                      ActionLabel="Read"
+                                      OnActionClick="() => OnReadFavorite(book)"
+                                      ShowFavoriteToggle="true"
+                                      IsFavorite="true"
+                                      OnFavoriteToggle="@(isFavorite => OnFavoriteToggle(book.Uid, isFavorite))" />
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="home-section">
+            <div class="home-section-header">
+                <h2>Recommended for you</h2>
+                <button type="button" class="btn-link" @onclick="() => _keywordModalOpen = true">
+                    @(_hasKeywords ? "Edit interests" : "Choose interests")
+                </button>
+            </div>
+
+            @if (!_hasKeywords)
+            {
+                <EmptyState Message="Tell us what you're into and we'll recommend books for you." />
+            }
+            else if (_loading)
+            {
+                <div class="book-row-scroll">
+                    @for (var i = 0; i < 5; i++)
+                    {
+                        <BookCardSkeleton />
+                    }
+                </div>
+            }
+            else if (_recommendedBooks.Count == 0)
+            {
+                <EmptyState Message="No recommendations yet for your interests. Browse the Library to find books." />
+            }
+            else
+            {
+                <div class="book-row-scroll">
+                    @for (var i = 0; i < _recommendedBooks.Count; i++)
+                    {
+                        var book = _recommendedBooks[i];
+                        <div style="--card-index: @i">
+                            <BookCard Title="@book.Title"
+                                      CoverImageUrl="@book.CoverImageUrl"
+                                      Price="@book.Price"
+                                      PremiumPrice="@book.PremiumPrice"
+                                      IsOwned="@IsOwned(book.Uid)"
+                                      IsPremiumOwned="@IsPremiumOwned(book.Uid)"
+                                      ShowPrice="@(!IsOwned(book.Uid))"
+                                      ActionLabel="@(IsOwned(book.Uid) ? "Owned" : "Buy")"
+                                      ShowActionButton="@(!IsOwned(book.Uid))"
+                                      OnActionClick="() => OnBookAction(book)"
+                                      ShowAddToCartButton="@(!IsOwned(book.Uid))"
+                                      IsInCart="@IsInCart(book.Uid)"
+                                      OnAddToCart="() => OnAddToCart(book)" />
+                        </div>
+                    }
+                </div>
+            }
+        </section>
     </AuthGate>
 </div>
 
+<KeywordPicker @bind-IsOpen="_keywordModalOpen" InitialSelection="@(AuthState.CurrentUser?.Keywords ?? [])" OnSave="SaveKeywords" />
+
+<DocumentListModal @bind-IsOpen="_docListOpen"
+                    BookTitle="@_selectedBookTitle"
+                    Documents="_selectedBookDocs"
+                    OnDocumentSelected="OnDocumentSelected" />
+
+<AddToCartModal @bind-IsOpen="_addToCartModalOpen"
+                Candidate="_addToCartCandidate"
+                OnConfirm="ConfirmAddToCart" />
+
 @code {
-    protected override void OnInitialized()
+    private bool _keywordModalOpen;
+    private bool _hasAutoPrompted;
+    private bool _hasKeywords;
+    private bool _loading = true;
+    private List<BookCardData> _recommendedBooks = [];
+
+    private bool _libraryLoading = true;
+    private List<HistoryEntry> _historyEntries = [];
+    private List<Book> _favoriteBooks = [];
+
+    private bool _docListOpen;
+    private string _selectedBookUid = "";
+    private string _selectedBookTitle = "";
+    private List<BookDocs> _selectedBookDocs = [];
+
+    private bool _addToCartModalOpen;
+    private CheckoutItem? _addToCartCandidate;
+
+    protected override async Task OnInitializedAsync()
     {
-        AuthState.OnChange += StateHasChanged;
+        AuthState.OnChange += OnAuthChanged;
+        _ = PreloadKeywordIconsAsync();
+        await LoadAsync();
     }
+
+    private async Task PreloadKeywordIconsAsync()
+    {
+        if (!LibraryCache.TryMarkKeywordIconsPreloaded()) return;
+
+        try
+        {
+            var urls = BookKeywords.All.Select(k => $"imgs/keywords/{k.IconFile}");
+            await JsInterop.PreloadImagesAsync(urls);
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    private async void OnAuthChanged()
+    {
+        await LoadAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (AuthState.IsBusy) return;
+
+        if (!AuthState.IsAuthenticated)
+        {
+            Nav.NavigateTo("/library");
+            return;
+        }
+
+        if (AuthState.CurrentUser is null) return;
+
+        await LoadLibrarySectionsAsync();
+
+        var keywords = AuthState.CurrentUser?.Keywords ?? [];
+        _hasKeywords = keywords.Count > 0;
+
+        if (!_hasKeywords)
+        {
+            if (!_hasAutoPrompted)
+            {
+                _hasAutoPrompted = true;
+                _keywordModalOpen = true;
+            }
+            return;
+        }
+
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            var allBooks = await AppService.GetAllBooks();
+            _recommendedBooks = allBooks
+                .Where(b => b.Keywords.Intersect(keywords).Any())
+                .Select(ToCardData)
+                .ToList();
+        }
+        catch (Exception)
+        {
+            _recommendedBooks = [];
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadLibrarySectionsAsync()
+    {
+        var libraryEntries = AuthState.CurrentUser?.Library ?? [];
+        if (libraryEntries.Count == 0)
+        {
+            _historyEntries = [];
+            _favoriteBooks = [];
+            _libraryLoading = false;
+            return;
+        }
+
+        _libraryLoading = true;
+        StateHasChanged();
+
+        List<Book> myBooks;
+        if (LibraryCache.TryGetMyLibrary(out var cached))
+        {
+            myBooks = cached;
+        }
+        else
+        {
+            try
+            {
+                myBooks = await AppService.GetMyLibraryBooks();
+                LibraryCache.SetMyLibrary(myBooks);
+            }
+            catch (Exception)
+            {
+                myBooks = [];
+            }
+        }
+
+        _historyEntries = libraryEntries
+            .Where(l => l.LastReadAt is not null && l.LastReadDocUid is not null)
+            .OrderByDescending(l => l.LastReadAt)
+            .Select(l => ToHistoryEntry(l, myBooks.FirstOrDefault(b => b.Uid == l.Uid)))
+            .Where(h => h is not null)
+            .Select(h => h!)
+            .ToList();
+
+        _favoriteBooks = libraryEntries
+            .Where(l => l.IsFavorite)
+            .Select(l => myBooks.FirstOrDefault(b => b.Uid == l.Uid))
+            .Where(b => b is not null)
+            .Select(b => b!)
+            .ToList();
+
+        _libraryLoading = false;
+        StateHasChanged();
+    }
+
+    private static HistoryEntry? ToHistoryEntry(UserLibrary entry, Book? book)
+    {
+        if (book is null || entry.LastReadDocUid is null) return null;
+
+        var docTitle = book.Documents.FirstOrDefault(d => d.Uid == entry.LastReadDocUid)?.Title;
+        var pageText = entry.LastReadTotalPages > 0
+            ? $"Page {entry.LastReadPage} of {entry.LastReadTotalPages}"
+            : $"Page {entry.LastReadPage}";
+        var whenText = FormatRelativeTime(entry.LastReadAt!.Value);
+        var meta = string.IsNullOrWhiteSpace(docTitle) ? $"{pageText} · {whenText}" : $"{docTitle} · {pageText} · {whenText}";
+
+        return new HistoryEntry(book.Uid, entry.LastReadDocUid, book.Title ?? "Untitled", book.ImageCoverUrl, meta);
+    }
+
+    private static string FormatRelativeTime(DateTime utc)
+    {
+        var span = DateTime.UtcNow - utc;
+        if (span.TotalMinutes < 1) return "Just now";
+        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes}m ago";
+        if (span.TotalHours < 24) return $"{(int)span.TotalHours}h ago";
+        if (span.TotalDays < 7) return $"{(int)span.TotalDays}d ago";
+        return utc.ToLocalTime().ToString("MMM d, yyyy");
+    }
+
+    private void ContinueReading(HistoryEntry entry)
+        => Nav.NavigateTo($"/read/{entry.BookUid}/{entry.DocUid}");
+
+    private void OnReadFavorite(Book book)
+    {
+        if (book.Documents.Count == 0) return;
+
+        if (book.Documents.Count == 1)
+        {
+            Nav.NavigateTo($"/read/{book.Uid}/{book.Documents[0].Uid}");
+            return;
+        }
+
+        _selectedBookUid = book.Uid;
+        _selectedBookTitle = book.Title ?? "Untitled";
+        _selectedBookDocs = book.Documents;
+        _docListOpen = true;
+    }
+
+    private void OnDocumentSelected(BookDocs doc)
+        => Nav.NavigateTo($"/read/{_selectedBookUid}/{doc.Uid}");
+
+    private async Task OnFavoriteToggle(string bookUid, bool isFavorite)
+    {
+        await AppService.SetFavorite(bookUid, isFavorite);
+        await AuthState.RefreshProfileAsync();
+    }
+
+    private async Task SaveKeywords(List<string> selected)
+    {
+        await AppService.UpdateUserKeywords(selected);
+        await AuthState.RefreshProfileAsync();
+        await LoadAsync();
+    }
+
+    private void OnBookAction(BookCardData book)
+    {
+        if (IsOwned(book.Uid))
+        {
+            Nav.NavigateTo("/my-library");
+            return;
+        }
+
+        var category = Uri.EscapeDataString(book.Category ?? "");
+        var uid = Uri.EscapeDataString(book.Uid);
+        Nav.NavigateTo($"/library?category={category}&buy={uid}");
+    }
+
+    private bool IsOwned(string bookUid)
+        => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Library.Any(l => l.Uid == bookUid) == true;
+
+    private bool IsPremiumOwned(string bookUid)
+        => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == bookUid)?.IsPremium == true;
+
+    private bool IsInCart(string bookUid)
+        => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Cart.Any(c => c.BookUid == bookUid) == true;
+
+    private async Task OnAddToCart(BookCardData book)
+    {
+        if (string.IsNullOrEmpty(book.Uid) || IsOwned(book.Uid) || IsInCart(book.Uid)) return;
+
+        if (book.PremiumPrice is not null)
+        {
+            _addToCartCandidate = new CheckoutItem(book.Uid, book.Title, book.CoverImageUrl, book.Price, book.Description, book.PremiumPrice);
+            _addToCartModalOpen = true;
+            return;
+        }
+
+        AuthState.AddToCartLocal(book.Uid);
+        await AppService.AddToCart(book.Uid);
+    }
+
+    private async Task ConfirmAddToCart(bool isPremium)
+    {
+        if (_addToCartCandidate is null) return;
+
+        AuthState.AddToCartLocal(_addToCartCandidate.BookUid, isPremium);
+        await AppService.AddToCart(_addToCartCandidate.BookUid, isPremium);
+        _addToCartCandidate = null;
+    }
+
+    private static BookCardData ToCardData(Book book) => new(book.Uid, book.Category, book.Title ?? "Untitled", book.ImageCoverUrl, book.Price, book.PremiumPrice, book.Description);
+
+    private record BookCardData(string Uid, string? Category, string Title, string? CoverImageUrl, decimal Price, decimal? PremiumPrice, string? Description);
+
+    private record HistoryEntry(string BookUid, string DocUid, string Title, string? CoverImageUrl, string MetaText);
 
     public void Dispose()
     {
-        AuthState.OnChange -= StateHasChanged;
+        AuthState.OnChange -= OnAuthChanged;
     }
 }

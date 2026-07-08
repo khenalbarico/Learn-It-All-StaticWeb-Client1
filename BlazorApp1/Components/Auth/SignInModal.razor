@@ -1,0 +1,40 @@
+@implements IDisposable
+@inject AuthSessionState AuthState
+
+@if (AuthState.SignInModalOpen)
+{
+    <div class="modal-backdrop" @onclick="AuthState.CloseSignInModal">
+        <div class="modal-box signin-modal" @onclick:stopPropagation="true">
+            <img class="signin-logo" src="imgs/app_logo.png" alt="Learn It All" />
+            <h3>Welcome to Learn It All</h3>
+            <p class="form-hint">Sign in or create your free account to buy books and read them anywhere.</p>
+            <div class="signin-providers">
+                <span class="signin-provider-chip" title="Google">
+                    <Icon Name="google" Size="20" />
+                </span>
+                <span class="signin-provider-chip" title="Facebook">
+                    <Icon Name="facebook-color" Size="20" />
+                </span>
+            </div>
+            <button type="button" class="btn btn-primary btn-block" @onclick="SignIn">
+                <Icon Name="user" Size="16" />
+                Sign In / Create Account
+            </button>
+            <button type="button" class="btn btn-ghost btn-block" @onclick="AuthState.CloseSignInModal">Not now</button>
+        </div>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+        => AuthState.OnChange += OnAuthChanged;
+
+    private void OnAuthChanged()
+        => InvokeAsync(StateHasChanged);
+
+    private void SignIn()
+        => AuthState.BeginSignIn();
+
+    public void Dispose()
+        => AuthState.OnChange -= OnAuthChanged;
+}

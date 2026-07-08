@@ -8,9 +8,9 @@ public class ApiUrlGetter : IApiUrlGetter
 
         return env switch
         {
-            "localhost" => "http://localhost:7041/api/",
-            "dev"       => "https://learn-it-all-api-dev1.azurewebsites.net/api/",
-            "prod"      => "https://REPLACE_WITH_PROD_URL.azurewebsites.net/api/", // no Prod Function App exists yet - update once deployed
+            //"dev"       => "http://localhost:7041/api/",
+            "dev"       => "https://learnitallapidev1.azurewebsites.net/api/",
+            "prod"      => "https://learn-it-all-api-prod1.azurewebsites.net/api/", 
             _           => throw new ArgumentException($"Unknown environment: {env}")
         };
     }

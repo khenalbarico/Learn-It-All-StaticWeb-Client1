@@ -10,6 +10,8 @@ public class LibraryCacheService
     private readonly Dictionary<string, byte[]> _documentCache = [];
     private readonly List<string> _documentCacheOrder = [];
     private List<Book>? _myLibraryCache;
+    private List<Book>? _allBooksCache;
+    private bool _keywordIconsPreloaded;
 
     public bool TryGetCategory(string category, out List<Book> books)
         => _categoryCache.TryGetValue(category, out books!);
@@ -28,6 +30,22 @@ public class LibraryCacheService
 
     public void InvalidateMyLibrary()
         => _myLibraryCache = null;
+
+    public bool TryGetAllBooks(out List<Book> books)
+    {
+        books = _allBooksCache ?? [];
+        return _allBooksCache is not null;
+    }
+
+    public void SetAllBooks(List<Book> books)
+        => _allBooksCache = books;
+
+    public bool TryMarkKeywordIconsPreloaded()
+    {
+        if (_keywordIconsPreloaded) return false;
+        _keywordIconsPreloaded = true;
+        return true;
+    }
 
     public bool TryGetDocument(string bookUid, string docUid, out byte[] bytes)
         => _documentCache.TryGetValue(DocumentKey(bookUid, docUid), out bytes!);
@@ -54,6 +72,7 @@ public class LibraryCacheService
     {
         _categoryCache.Clear();
         _myLibraryCache = null;
+        _allBooksCache = null;
         _documentCache.Clear();
         _documentCacheOrder.Clear();
     }

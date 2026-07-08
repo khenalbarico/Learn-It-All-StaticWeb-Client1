@@ -1,8 +1,11 @@
 @inject AuthSessionState AuthState
 
-@if (AuthState.IsInitializing)
+@if (AuthState.IsBusy)
 {
-    <div class="spinner"></div>
+    <div class="auth-loading">
+        <div class="spinner"></div>
+        <p class="form-hint">Finishing sign-in...</p>
+    </div>
 }
 else if (!AuthState.IsAuthenticated)
 {
@@ -14,6 +17,14 @@ else if (!AuthState.IsAuthenticated)
     {
         <GuestNotice Message="@GuestMessage" />
     }
+}
+else if (AuthState.ProfileLoadError is not null)
+{
+    <ErrorBanner Message="@AuthState.ProfileLoadError" OnRetry="() => AuthState.RefreshProfileAsync()" />
+}
+else if (AuthState.CurrentUser is null)
+{
+    <GuestNotice Message="Finish setting up your account to continue." />
 }
 else
 {

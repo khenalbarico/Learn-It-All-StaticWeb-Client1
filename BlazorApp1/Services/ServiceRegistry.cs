@@ -10,12 +10,9 @@ public static class ServiceRegistry
 {
     public static IServiceCollection AddLearnItAllServices(this IServiceCollection services, string apiEnvironment)
     {
-        services.AddSingleton<IFirebaseCfg, FirebaseWebCfg>();
         services.AddSingleton<IAdSenseCfg, AdSenseWebCfg>();
         services.AddSingleton<JsInteropService>();
-        services.AddSingleton<IAuthPersistence, BrowserAuthPersistence>();
-        services.AddSingleton<TokenCache>();
-        services.AddSingleton<IAppAuthentication, AppAuthentication>();
+        services.AddScoped<IAppAuthentication, EntraAuthentication>();
 
         services.AddSingleton<IApiUrlGetter, ApiUrlGetter>();
         services.AddHttpClient("LearnItAllApi", (sp, client) =>
@@ -27,16 +24,15 @@ public static class ServiceRegistry
             client.Timeout     = TimeSpan.FromSeconds(20);
             client.DefaultRequestHeaders.Add("Accept", "application/json");
         });
-        services.AddSingleton<IApiClient>(sp => new ApiClient(
+        services.AddScoped<IApiClient>(sp => new ApiClient(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("LearnItAllApi"),
-            sp.GetRequiredService<TokenCache>(),
             sp.GetRequiredService<IAppAuthentication>()));
 
-        services.AddSingleton<IAppService, AppService>();
-        services.AddSingleton<IPaymentService, PaymentService>();
+        services.AddScoped<IAppService, AppService>();
+        services.AddScoped<IPaymentService, PaymentService>();
         services.AddSingleton<LibraryCacheService>();
         services.AddSingleton<ThemeService>();
-        services.AddSingleton<AuthSessionState>();
+        services.AddScoped<AuthSessionState>();
 
         return services;
     }

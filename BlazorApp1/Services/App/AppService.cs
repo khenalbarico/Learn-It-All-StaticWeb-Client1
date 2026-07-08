@@ -58,4 +58,46 @@ public class AppService(IApiClient _api) : IAppService
             // best-effort; a failed activity log must never affect the user's actual action
         }
     }
+
+    public Task UpdateUserKeywords(List<string> keywords)
+        => _api.SubmitAsync(ApiFunctions.UpdateUserKeywords, new { Keywords = keywords });
+
+    public async Task SaveReadingProgress(string bookUid, string docUid, int page, int totalPages)
+    {
+        try
+        {
+            await _api.SubmitAsync(ApiFunctions.SaveReadingProgress, new { BookUid = bookUid, DocUid = docUid, Page = page, TotalPages = totalPages });
+        }
+        catch (Exception)
+        {
+            // best-effort; losing a progress-save must never interrupt reading
+        }
+    }
+
+    public Task SetFavorite(string bookUid, bool isFavorite)
+        => _api.SubmitAsync(ApiFunctions.SetFavorite, new { BookUid = bookUid, IsFavorite = isFavorite });
+
+    public async Task AddToCart(string bookUid, bool isPremium = false)
+    {
+        try
+        {
+            await _api.SubmitAsync(ApiFunctions.AddToCart, new { BookUid = bookUid, IsPremium = isPremium });
+        }
+        catch (Exception)
+        {
+            // best-effort; the optimistic local cart update already reflected the action
+        }
+    }
+
+    public async Task RemoveFromCart(string bookUid)
+    {
+        try
+        {
+            await _api.SubmitAsync(ApiFunctions.RemoveFromCart, new { BookUid = bookUid });
+        }
+        catch (Exception)
+        {
+            // best-effort; the optimistic local cart update already reflected the action
+        }
+    }
 }

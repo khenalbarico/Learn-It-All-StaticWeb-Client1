@@ -21,6 +21,15 @@
                 <span class="reader-doc-title">@(_currentDoc?.Title ?? "")</span>
             </div>
 
+            @if (_libraryEntry is not null)
+            {
+                <button class="btn btn-ghost reader-favorite @(_isFavorite ? "is-favorite" : "")"
+                        @onclick="ToggleFavorite" title="@(_isFavorite ? "Remove from favorites" : "Add to favorites")"
+                        aria-label="Toggle favorite">
+                    <Icon Name="@(_isFavorite ? "heart-filled" : "heart")" Size="18" />
+                </button>
+            }
+
             @if (_book is not null && _book.Documents.Count > 1)
             {
                 <select class="reader-select" value="@DocUid" @onchange="OnDocumentChanged" disabled="@_loading">
@@ -40,6 +49,7 @@
                     }
                 </select>
             }
+
         </div>
 
         <AdUnit SlotId="@AdCfg.ReaderSlotId" CssClass="ad-reader-strip" />
@@ -57,9 +67,36 @@
                 <ErrorBanner Message="@_error" OnRetry="LoadDocumentAsync" />
             </div>
         }
-        else
+        <div class="reader-frame" id="@_containerId" style="@(_loading || _error is not null ? "display:none" : null)"></div>
+
+        @if (!_loading && _error is null && _totalPages > 0)
         {
-            <iframe class="reader-frame" src="@_blobUrlWithParams" title="@(_currentDoc?.Title ?? "Book reader")"></iframe>
+            <div class="reader-controls">
+                <button class="btn btn-ghost reader-pagenav-btn" @onclick="PrevPage" disabled="@(_currentPage <= 1)" aria-label="Previous page">
+                    <Icon Name="chevron-left" Size="18" />
+                </button>
+
+                <form class="reader-controls-page" @onsubmit="CommitPageInput" @onsubmit:preventDefault="true">
+                    <input type="number" class="reader-pagejump-input" min="1" max="@_totalPages"
+                           value="@_currentPage" @onchange="OnPageInputChanged"
+                           aria-label="Current page, type to jump" title="Type a page number and press Enter" />
+                    <span class="reader-controls-total">/ @_totalPages</span>
+                </form>
+
+                <button class="btn btn-ghost reader-pagenav-btn" @onclick="NextPage" disabled="@(_currentPage >= _totalPages)" aria-label="Next page">
+                    <Icon Name="chevron-right" Size="18" />
+                </button>
+
+                <div class="reader-controls-divider"></div>
+
+                <button class="btn btn-ghost reader-pagenav-btn" @onclick="ZoomOut" disabled="@(_zoom <= MinZoom)" aria-label="Zoom out">
+                    <Icon Name="zoom-out" Size="18" />
+                </button>
+                <span class="reader-controls-total reader-zoom-value">@((_zoom * 100).ToString("0"))%</span>
+                <button class="btn btn-ghost reader-pagenav-btn" @onclick="ZoomIn" disabled="@(_zoom >= MaxZoom)" aria-label="Zoom in">
+                    <Icon Name="zoom-in" Size="18" />
+                </button>
+            </div>
         }
     </AuthGate>
 </div>
@@ -68,14 +105,24 @@
     [Parameter] public string BookUid { get; set; } = "";
     [Parameter] public string DocUid { get; set; } = "";
 
+    private const double MinZoom = 0.5;
+    private const double MaxZoom = 4.0;
+    private const int ProgressSaveDebounceMs = 1500;
+
+    private readonly string _containerId = $"pdf-viewer-{Guid.NewGuid():N}";
     private Book? _book;
     private BookDocs? _currentDoc;
     private List<Book> _libraryBooks = [];
+    private UserLibrary? _libraryEntry;
+    private bool _isFavorite;
     private bool _loading = true;
     private string? _error;
-    private string? _blobUrl;
-    private string? _blobUrlWithParams;
+    private int _currentPage = 1;
+    private int _totalPages;
+    private double _zoom = 1.0;
     private string? _loadedForKey;
+    private CancellationTokenSource? _progressSaveCts;
+    private string _pageInputValue = "";
 
     protected override async Task OnParametersSetAsync()
     {
@@ -110,20 +157,18 @@
 
         _book = _libraryBooks.FirstOrDefault(b => b.Uid == BookUid);
         _currentDoc = _book?.Documents.FirstOrDefault(d => d.Uid == DocUid);
+        _libraryEntry = AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == BookUid);
+        _isFavorite = _libraryEntry?.IsFavorite ?? false;
     }
 
     private async Task LoadDocumentAsync()
     {
         _loading = true;
         _error = null;
+        _totalPages = 0;
+        _currentPage = 1;
+        _zoom = 1.0;
         StateHasChanged();
-
-        if (_blobUrl is not null)
-        {
-            await JsInterop.RevokeBlobUrlAsync(_blobUrl);
-            _blobUrl = null;
-            _blobUrlWithParams = null;
-        }
 
         try
         {
@@ -133,8 +178,17 @@
                 LibraryCache.SetDocument(BookUid, DocUid, bytes);
             }
 
-            _blobUrl = await JsInterop.CreatePdfBlobUrlAsync(bytes);
-            _blobUrlWithParams = $"{_blobUrl}#toolbar=0&navpanes=0";
+            _loading = false;
+            StateHasChanged();
+
+            _totalPages = await JsInterop.LoadPdfAsync(_containerId, bytes);
+            _currentPage = 1;
+
+            var savedProgress = _libraryEntry?.DocumentsProgress.FirstOrDefault(d => d.DocUid == DocUid);
+            if (savedProgress is not null && savedProgress.Page > 1)
+            {
+                _currentPage = await JsInterop.GoToPdfPageAsync(_containerId, Math.Min(savedProgress.Page, _totalPages));
+            }
         }
         catch (ApiUnavailableException ex)
         {
@@ -153,6 +207,75 @@
             _loading = false;
             StateHasChanged();
         }
+    }
+
+    private Task PrevPage() => GoToPage(_currentPage - 1);
+
+    private Task NextPage() => GoToPage(_currentPage + 1);
+
+    private async Task GoToPage(int page)
+    {
+        if (_loading || _error is not null) return;
+        _currentPage = await JsInterop.GoToPdfPageAsync(_containerId, page);
+        ScheduleProgressSave();
+        StateHasChanged();
+    }
+
+    private async Task OnPageInputChanged(ChangeEventArgs e)
+    {
+        _pageInputValue = e.Value?.ToString() ?? "";
+        await CommitPageInput();
+    }
+
+    private async Task CommitPageInput()
+    {
+        if (int.TryParse(_pageInputValue, out var page) && page != _currentPage)
+            await GoToPage(page);
+
+        _pageInputValue = "";
+    }
+
+    private async Task ZoomIn()
+    {
+        if (_loading || _error is not null) return;
+        _zoom = await JsInterop.ZoomPdfAsync(_containerId, 1);
+        StateHasChanged();
+    }
+
+    private async Task ZoomOut()
+    {
+        if (_loading || _error is not null) return;
+        _zoom = await JsInterop.ZoomPdfAsync(_containerId, -1);
+        StateHasChanged();
+    }
+
+    private async void ScheduleProgressSave()
+    {
+        _progressSaveCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        _progressSaveCts = cts;
+        var pageToSave = _currentPage;
+        var totalPagesToSave = _totalPages;
+
+        try
+        {
+            await Task.Delay(ProgressSaveDebounceMs, cts.Token);
+            await AppService.SaveReadingProgress(BookUid, DocUid, pageToSave, totalPagesToSave);
+            AuthState.UpdateLocalReadingProgress(BookUid, DocUid, pageToSave, totalPagesToSave);
+        }
+        catch (TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task ToggleFavorite()
+    {
+        var newValue = !_isFavorite;
+        _isFavorite = newValue;
+        StateHasChanged();
+
+        await AppService.SetFavorite(BookUid, newValue);
+        _ = AuthState.RefreshProfileAsync();
     }
 
     private void OnDocumentChanged(ChangeEventArgs e)
@@ -178,9 +301,13 @@
 
     public void Dispose()
     {
-        if (_blobUrl is not null)
+        _progressSaveCts?.Cancel();
+        if (_totalPages > 0 && _error is null)
         {
-            _ = JsInterop.RevokeBlobUrlAsync(_blobUrl);
+            _ = AppService.SaveReadingProgress(BookUid, DocUid, _currentPage, _totalPages);
+            AuthState.UpdateLocalReadingProgress(BookUid, DocUid, _currentPage, _totalPages);
         }
+
+        _ = JsInterop.DisposePdfAsync(_containerId);
     }
 }

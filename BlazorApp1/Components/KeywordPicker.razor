@@ -1,0 +1,169 @@
+@using BlazorApp1.Models
+@using BlazorApp1.Services.App
+@inject IAppService AppService
+@inject NavigationManager Nav
+
+@if (IsOpen)
+{
+    <div class="modal-backdrop" @onclick="Close">
+        <div class="modal-box keyword-picker-modal" @onclick:stopPropagation="true">
+            @if (_view == View.Picking)
+            {
+                <div @key="@("picking")" class="keyword-view">
+                    <h2>What are you into?</h2>
+                    <p class="form-hint">Pick a few topics and we'll recommend books for you. You can change this anytime.</p>
+
+                    <div class="keyword-grid">
+                        @foreach (var (value, label, iconFile) in BookKeywords.All)
+                        {
+                            <button type="button"
+                                    class="keyword-chip @(_selected.Contains(value) ? "selected" : "")"
+                                    @onclick="() => Toggle(value)">
+                                <img src="@($"imgs/keywords/{iconFile}")" alt="@label" />
+                                <span>@label</span>
+                            </button>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(_error))
+                    {
+                        <p class="form-error">@_error</p>
+                    }
+
+                    <button type="button" class="btn btn-primary btn-block" @onclick="Save" disabled="@_guard.IsBusy">
+                        @(_guard.IsBusy ? "Saving..." : "Save Interests")
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-block" @onclick="Close" disabled="@_guard.IsBusy">Maybe later</button>
+                </div>
+            }
+            else
+            {
+                <div @key="@("results")" class="keyword-view">
+                    <div class="icon-badge">
+                        <Icon Name="check" Size="28" />
+                    </div>
+                    <h2>Interests saved!</h2>
+                    <p class="form-hint">Here's what we found for you &mdash; tap a book to see it in the Library.</p>
+
+                    @if (_loadingResults)
+                    {
+                        <div class="book-grid modal-book-grid">
+                            @for (var i = 0; i < 4; i++)
+                            {
+                                <BookCardSkeleton />
+                            }
+                        </div>
+                    }
+                    else if (_results.Count == 0)
+                    {
+                        <EmptyState Message="No matching books yet. Browse the Library to explore everything available." />
+                    }
+                    else
+                    {
+                        <div class="book-grid modal-book-grid">
+                            @for (var i = 0; i < _results.Count; i++)
+                            {
+                                var book = _results[i];
+                                <div style="--card-index: @i">
+                                    <BookCard Title="@(book.Title ?? "Untitled")"
+                                              CoverImageUrl="@book.ImageCoverUrl"
+                                              ShowFooter="false"
+                                              OnActionClick="() => GoToBook(book)" />
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <button type="button" class="btn btn-primary btn-block" @onclick="Close">Done</button>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public List<string> InitialSelection { get; set; } = [];
+    [Parameter] public EventCallback<List<string>> OnSave { get; set; }
+
+    private enum View { Picking, Results }
+
+    private readonly HashSet<string> _selected = [];
+    private readonly SubmitGuard _guard = new();
+    private string? _error;
+    private bool _wasOpen;
+    private View _view = View.Picking;
+    private bool _loadingResults;
+    private List<Book> _results = [];
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && !_wasOpen)
+        {
+            _selected.Clear();
+            foreach (var keyword in InitialSelection)
+                _selected.Add(keyword);
+            _error = null;
+            _view = View.Picking;
+        }
+
+        _wasOpen = IsOpen;
+    }
+
+    private void Toggle(string value)
+    {
+        if (!_selected.Add(value))
+            _selected.Remove(value);
+    }
+
+    private Task Save() => _guard.RunAsync(async () =>
+    {
+        _error = null;
+
+        if (_selected.Count == 0)
+        {
+            _error = "Please choose at least one topic.";
+            return;
+        }
+
+        var selected = _selected.ToList();
+        await OnSave.InvokeAsync(selected);
+        await ShowResultsAsync(selected);
+    });
+
+    private async Task ShowResultsAsync(List<string> keywords)
+    {
+        _view = View.Results;
+        _loadingResults = true;
+        StateHasChanged();
+
+        try
+        {
+            var allBooks = await AppService.GetAllBooks();
+            _results = allBooks.Where(b => b.Keywords.Intersect(keywords).Any()).Take(8).ToList();
+        }
+        catch (Exception)
+        {
+            _results = [];
+        }
+        finally
+        {
+            _loadingResults = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GoToBook(Book book)
+    {
+        await Close();
+        var category = string.IsNullOrWhiteSpace(book.Category) ? "" : $"?category={Uri.EscapeDataString(book.Category)}";
+        Nav.NavigateTo($"/library{category}");
+    }
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}

@@ -1,9 +1,9 @@
 @page "/my-library"
+@implements IDisposable
 @inject AuthSessionState AuthState
 @inject IAppService AppService
 @inject LibraryCacheService LibraryCache
 @inject NavigationManager Nav
-@inject HttpClient Http
 
 <PageTitle>My Library - Learn It All</PageTitle>
 
@@ -11,104 +11,155 @@
     <h1>My Library</h1>
 
     <AuthGate GuestMessage="Log in to see the books you've purchased.">
-        <GuestContent>
-            <p class="banner">Log in to see your real library &mdash; here's a preview of what's available.</p>
+        @if (_readError is not null)
+        {
+            <ErrorBanner Message="@_readError" OnRetry="() => { _readError = null; }" />
+        }
 
-            @if (_dummyCatalog is null)
-            {
-                <div class="book-grid">
-                    @for (var i = 0; i < 8; i++)
-                    {
-                        <BookCardSkeleton />
-                    }
+        @if (_myLibraryBooks.Count > 0)
+        {
+            <div class="list-toolbar">
+                <div class="search-field">
+                    <Icon Name="search" Size="18" />
+                    <input type="search" placeholder="Search your books..." value="@_searchTerm" @oninput="OnSearchInput" />
                 </div>
-            }
-            else
-            {
-                <div class="book-grid">
-                    @for (var i = 0; i < _dummyCatalog.Count; i++)
-                    {
-                        var book = _dummyCatalog[i];
-                        <div style="--card-index: @i">
-                            <BookCard Title="@book.Title"
-                                      CoverImageUrl="@book.CoverImage"
-                                      Price="@book.Price"
-                                      OnActionClick="OpenComingSoon" />
-                        </div>
-                    }
+                <div class="sort-field">
+                    <Icon Name="sort" Size="16" />
+                    <select value="@_sortMode" @onchange="OnSortChanged">
+                        <option value="Alphabetical">Alphabetical</option>
+                        <option value="RecentlyPurchased">Recently Purchased</option>
+                        <option value="RecentlyRead">Recently Read</option>
+                    </select>
                 </div>
-            }
-        </GuestContent>
-        <ChildContent>
-            @if (_readError is not null)
-            {
-                <ErrorBanner Message="@_readError" OnRetry="() => { _readError = null; }" />
-            }
+            </div>
+        }
 
-            @if (_loading)
-            {
-                <div class="book-grid">
-                    @for (var i = 0; i < 4; i++)
-                    {
-                        <BookCardSkeleton />
-                    }
-                </div>
-            }
-            else if (_error is not null)
-            {
-                <ErrorBanner Message="@_error" OnRetry="LoadMyLibraryAsync" />
-            }
-            else if (_books.Count == 0)
-            {
-                <EmptyState Message="You haven't bought any books yet. Head to the Library to find something to read." />
-            }
-            else
-            {
-                <div class="book-grid">
-                    @for (var i = 0; i < _books.Count; i++)
-                    {
-                        var book = _books[i];
-                        <div style="--card-index: @i">
-                            <BookCard Title="@(book.Title ?? "Untitled")"
-                                      CoverImageUrl="@book.ImageCoverUrl"
-                                      ShowPrice="false"
-                                      ActionLabel="Read"
-                                      OnActionClick="() => OnReadClick(book)" />
-                        </div>
-                    }
-                </div>
-            }
-        </ChildContent>
+        @if (_loading)
+        {
+            <div class="book-grid">
+                @for (var i = 0; i < 4; i++)
+                {
+                    <BookCardSkeleton />
+                }
+            </div>
+        }
+        else if (_error is not null)
+        {
+            <ErrorBanner Message="@_error" OnRetry="LoadMyLibraryAsync" />
+        }
+        else if (_books.Count == 0 && !string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            <EmptyState Message="@($"No books match \"{_searchTerm}\".")" />
+        }
+        else if (_books.Count == 0)
+        {
+            <EmptyState Message="You haven't bought any books yet. Head to the Library to find something to read." />
+        }
+        else
+        {
+            <div class="book-grid">
+                @for (var i = 0; i < _books.Count; i++)
+                {
+                    var book = _books[i];
+                    <div style="--card-index: @i">
+                        <BookCard Title="@(book.Title ?? "Untitled")"
+                                  CoverImageUrl="@book.ImageCoverUrl"
+                                  ShowPrice="false"
+                                  IsPremiumOwned="@OwnsPremium(book.Uid)"
+                                  MetaText="@(HasPremiumUpsell(book) ? "★ Premium available" : null)"
+                                  ActionLabel="Read"
+                                  OnActionClick="() => OnReadClick(book)"
+                                  ShowFavoriteToggle="true"
+                                  IsFavorite="@IsFavorite(book.Uid)"
+                                  OnFavoriteToggle="@(isFavorite => OnFavoriteToggle(book.Uid, isFavorite))" />
+                    </div>
+                }
+            </div>
+        }
     </AuthGate>
 </div>
-
-<ComingSoonModal @bind-IsOpen="_comingSoonOpen" />
 
 <DocumentListModal @bind-IsOpen="_docListOpen"
                     BookTitle="@_selectedBookTitle"
                     Documents="_selectedBookDocs"
-                    OnDocumentSelected="OnDocumentSelected" />
+                    OwnsPremium="@_selectedBookPremiumOwned"
+                    HasPremiumTier="@_selectedBookHasPremiumTier"
+                    OnDocumentSelected="OnDocumentSelected"
+                    OnUpgradeClick="OnUpgradeFromModal" />
+
+<BuyBookModal @bind-IsOpen="_upgradeModalOpen"
+              Items="_upgradeItems"
+              OnPurchased="OnUpgradePurchased" />
 
 @code {
-    private List<Book> _books = [];
+    private enum SortMode { Alphabetical, RecentlyPurchased, RecentlyRead }
+
+    private List<Book> _myLibraryBooks = [];
+    private string _searchTerm = "";
+    private SortMode _sortMode = SortMode.Alphabetical;
     private bool _loading = true;
     private string? _error;
     private string? _readError;
-    private bool _comingSoonOpen;
     private bool _docListOpen;
     private string _selectedBookUid = "";
     private string _selectedBookTitle = "";
     private List<BookDocs> _selectedBookDocs = [];
-    private List<DummyBook>? _dummyCatalog;
+    private bool _selectedBookPremiumOwned;
+    private bool _selectedBookHasPremiumTier;
+    private Book? _selectedBook;
+    private bool _upgradeModalOpen;
+    private List<CheckoutItem> _upgradeItems = [];
+
+    private List<Book> _books
+    {
+        get
+        {
+            var filtered = string.IsNullOrWhiteSpace(_searchTerm)
+                ? _myLibraryBooks
+                : _myLibraryBooks.Where(b => (b.Title ?? "").Contains(_searchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            return _sortMode switch
+            {
+                SortMode.RecentlyPurchased => filtered.OrderByDescending(PurchasedAt).ToList(),
+                SortMode.RecentlyRead => filtered
+                    .OrderByDescending(b => LastReadAt(b) ?? DateTime.MinValue)
+                    .ThenBy(b => b.Title, StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+                _ => filtered.OrderBy(b => b.Title, StringComparer.OrdinalIgnoreCase).ToList(),
+            };
+        }
+    }
+
+    private DateTime PurchasedAt(Book book)
+        => AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == book.Uid)?.PurchasedAt ?? DateTime.MinValue;
+
+    private DateTime? LastReadAt(Book book)
+        => AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == book.Uid)?.LastReadAt;
+
+    private void OnSearchInput(ChangeEventArgs e) => _searchTerm = e.Value?.ToString() ?? "";
+
+    private void OnSortChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<SortMode>(e.Value?.ToString(), out var mode))
+            _sortMode = mode;
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        if (!AuthState.IsAuthenticated)
-        {
-            _dummyCatalog = await Http.GetFromJsonAsync<List<DummyBook>>("data/dummy-books.json") ?? [];
-            _loading = false;
-            return;
-        }
+        AuthState.OnChange += OnAuthChanged;
+        await LoadIfReadyAsync();
+    }
+
+    private async void OnAuthChanged()
+    {
+        await LoadIfReadyAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadIfReadyAsync()
+    {
+        if (AuthState.IsInitializing || !AuthState.IsAuthenticated) return;
+        if (AuthState.CurrentUser is null) return;
 
         await LoadMyLibraryAsync();
     }
@@ -119,7 +170,7 @@
 
         if (LibraryCache.TryGetMyLibrary(out var cached))
         {
-            _books = cached;
+            _myLibraryBooks = cached;
             _loading = false;
             return;
         }
@@ -127,8 +178,8 @@
         _loading = true;
         try
         {
-            _books = await AppService.GetMyLibraryBooks();
-            LibraryCache.SetMyLibrary(_books);
+            _myLibraryBooks = await AppService.GetMyLibraryBooks();
+            LibraryCache.SetMyLibrary(_myLibraryBooks);
         }
         catch (ApiUnavailableException ex)
         {
@@ -154,20 +205,70 @@
             return;
         }
 
-        if (book.Documents.Count == 1)
+        var ownsPremium = OwnsPremium(book.Uid);
+
+        if (book.Documents.Count == 1 && !book.Documents[0].IsPremium && book.PremiumPrice is null)
         {
             Nav.NavigateTo($"/read/{book.Uid}/{book.Documents[0].Uid}");
             return;
         }
 
+        _selectedBook = book;
         _selectedBookUid = book.Uid;
         _selectedBookTitle = book.Title ?? "Untitled";
         _selectedBookDocs = book.Documents;
+        _selectedBookPremiumOwned = ownsPremium;
+        _selectedBookHasPremiumTier = book.PremiumPrice is not null;
         _docListOpen = true;
     }
 
     private void OnDocumentSelected(BookDocs doc)
         => Nav.NavigateTo($"/read/{_selectedBookUid}/{doc.Uid}");
 
-    private void OpenComingSoon() => _comingSoonOpen = true;
+    private bool OwnsPremium(string bookUid)
+        => AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == bookUid)?.IsPremium ?? false;
+
+    private bool HasPremiumUpsell(Book book)
+        => book.PremiumPrice is not null && !OwnsPremium(book.Uid);
+
+    private void OnUpgradeFromModal()
+    {
+        if (_selectedBook is null || _selectedBook.PremiumPrice is null) return;
+
+        _upgradeItems =
+        [
+            new CheckoutItem(
+                _selectedBook.Uid,
+                $"{_selectedBook.Title ?? "Untitled"} — Premium Upgrade",
+                _selectedBook.ImageCoverUrl,
+                _selectedBook.Price,
+                _selectedBook.Description,
+                _selectedBook.PremiumPrice,
+                IsPremium: true,
+                IsUpgrade: true)
+        ];
+        _upgradeModalOpen = true;
+    }
+
+    private async Task OnUpgradePurchased()
+    {
+        LibraryCache.InvalidateMyLibrary();
+        await AuthState.RefreshProfileAsync();
+        await LoadMyLibraryAsync();
+        StateHasChanged();
+    }
+
+    private bool IsFavorite(string bookUid)
+        => AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == bookUid)?.IsFavorite ?? false;
+
+    private async Task OnFavoriteToggle(string bookUid, bool isFavorite)
+    {
+        await AppService.SetFavorite(bookUid, isFavorite);
+        await AuthState.RefreshProfileAsync();
+    }
+
+    public void Dispose()
+    {
+        AuthState.OnChange -= OnAuthChanged;
+    }
 }

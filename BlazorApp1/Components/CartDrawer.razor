@@ -1,0 +1,164 @@
+@implements IDisposable
+@inject AuthSessionState AuthState
+@inject IAppService AppService
+@inject LibraryCacheService LibraryCache
+
+@if (IsOpen)
+{
+    <div class="cart-backdrop" @onclick="Close">
+        <div class="cart-drawer" @onclick:stopPropagation="true">
+            <div class="cart-drawer-header">
+                <h3>Your Cart</h3>
+                <button class="btn btn-ghost btn-icon" @onclick="Close" aria-label="Close cart">
+                    <Icon Name="close" Size="18" />
+                </button>
+            </div>
+
+            @if (_loading)
+            {
+                <div class="spinner"></div>
+            }
+            else if (_items.Count == 0)
+            {
+                <EmptyState Message="Your cart is empty. Add books from the Library to buy them together." />
+            }
+            else
+            {
+                <div class="cart-items">
+                    @foreach (var item in _items)
+                    {
+                        <div class="cart-item">
+                            <img class="cart-item-cover" src="@ResolveCover(item.CoverUrl)" alt="@item.Title cover" />
+                            <div class="cart-item-info">
+                                <span class="cart-item-title">
+                                    @item.Title
+                                    @if (item.IsPremium)
+                                    {
+                                        <span class="badge badge-premium">★ Premium</span>
+                                    }
+                                </span>
+                                <span class="cart-item-price">₱@item.EffectivePrice.ToString("N2")</span>
+                            </div>
+                            <button class="btn btn-ghost btn-icon" @onclick="() => RemoveItem(item.BookUid)"
+                                    title="Remove from cart" aria-label="Remove from cart">
+                                <Icon Name="close" Size="16" />
+                            </button>
+                        </div>
+                    }
+                </div>
+
+                <div class="cart-total">
+                    <span>Total</span>
+                    <strong>₱@_items.Sum(i => i.EffectivePrice).ToString("N2")</strong>
+                </div>
+
+                <button class="btn btn-primary btn-block" @onclick="StartCheckout">Checkout</button>
+            }
+        </div>
+    </div>
+}
+
+<BuyBookModal @bind-IsOpen="_checkoutOpen" Items="_checkoutItems" OnPurchased="OnPurchased" />
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    private bool _loading;
+    private List<CheckoutItem> _items = [];
+    private bool _checkoutOpen;
+    private List<CheckoutItem> _checkoutItems = [];
+
+    protected override void OnInitialized()
+    {
+        AuthState.OnChange += OnAuthChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen)
+        {
+            await LoadItemsAsync();
+        }
+    }
+
+    private async void OnAuthChanged()
+    {
+        if (IsOpen)
+            await LoadItemsAsync();
+
+        StateHasChanged();
+    }
+
+    private async Task LoadItemsAsync()
+    {
+        var cart = AuthState.CurrentUser?.Cart ?? [];
+        if (cart.Count == 0)
+        {
+            _items = [];
+            return;
+        }
+
+        _loading = true;
+        StateHasChanged();
+
+        List<Book> allBooks;
+        if (LibraryCache.TryGetAllBooks(out var cached))
+        {
+            allBooks = cached;
+        }
+        else
+        {
+            try
+            {
+                allBooks = await AppService.GetAllBooks();
+                LibraryCache.SetAllBooks(allBooks);
+            }
+            catch (Exception)
+            {
+                allBooks = [];
+            }
+        }
+
+        _items = cart
+            .Select(c => (Cart: c, Book: allBooks.FirstOrDefault(b => b.Uid == c.BookUid)))
+            .Where(x => x.Book is not null)
+            .Select(x => new CheckoutItem(x.Book!.Uid, x.Book.Title ?? "Untitled", x.Book.ImageCoverUrl, x.Book.Price, x.Book.Description, x.Book.PremiumPrice, x.Cart.IsPremium))
+            .ToList();
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private static string ResolveCover(string? url) => string.IsNullOrWhiteSpace(url) ? "imgs/app_logo.png" : url!;
+
+    private async Task RemoveItem(string bookUid)
+    {
+        AuthState.RemoveFromCartLocal(bookUid);
+        _items = _items.Where(i => i.BookUid != bookUid).ToList();
+        await AppService.RemoveFromCart(bookUid);
+    }
+
+    private void StartCheckout()
+    {
+        _checkoutItems = _items;
+        _checkoutOpen = true;
+    }
+
+    private async Task OnPurchased()
+    {
+        await AuthState.RefreshProfileAsync();
+        await LoadItemsAsync();
+    }
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+
+    public void Dispose()
+    {
+        AuthState.OnChange -= OnAuthChanged;
+    }
+}

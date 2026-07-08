@@ -1,0 +1,76 @@
+@if (IsOpen && Candidate is not null)
+{
+    <div class="modal-backdrop" @onclick="Close">
+        <div class="modal-box qr-modal" @onclick:stopPropagation="true">
+            <div class="book-detail-cover-wrap @(_premiumSelected ? "premium-active" : "")">
+                <div class="premium-glow"></div>
+                <div class="stack-page stack-page-1"></div>
+                <div class="stack-page stack-page-2"></div>
+                <div class="stack-page stack-page-3"></div>
+                <img class="book-detail-cover" src="@ResolveCover(Candidate.CoverUrl)" alt="@Candidate.Title cover" />
+            </div>
+            @if (_premiumSelected)
+            {
+                <p class="premium-callout">★ Unlocks extra bonus PDFs included with this book</p>
+            }
+            <h3>@Candidate.Title</h3>
+            <p class="form-hint">Choose which edition to add to your cart.</p>
+
+            <div class="tier-options">
+                <button class="tier-option @(!_premiumSelected ? "selected" : "")" @onclick="() => _premiumSelected = false">
+                    <span class="tier-option-name">Regular</span>
+                    <span class="tier-option-price">₱@Candidate.Price.ToString("N2")</span>
+                </button>
+                <button class="tier-option tier-option-premium @(_premiumSelected ? "selected" : "")" @onclick="() => _premiumSelected = true">
+                    <span class="tier-option-name">★ Premium</span>
+                    <span class="tier-option-price">₱@PremiumPriceDisplay.ToString("N2")</span>
+                    <span class="tier-option-hint">Includes bonus content</span>
+                </button>
+            </div>
+
+            <div class="book-detail-price">₱@SelectedPrice.ToString("N2")</div>
+
+            <button class="btn btn-primary btn-block" @onclick="Confirm">Add to Cart</button>
+            <button class="btn btn-ghost btn-block" @onclick="Close">Cancel</button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public CheckoutItem? Candidate { get; set; }
+    [Parameter] public EventCallback<bool> OnConfirm { get; set; }
+
+    private bool _premiumSelected;
+    private string? _openedForUid;
+
+    private decimal SelectedPrice => _premiumSelected && Candidate?.PremiumPrice is decimal premium
+        ? premium
+        : Candidate?.Price ?? 0;
+
+    private decimal PremiumPriceDisplay => Candidate?.PremiumPrice ?? 0;
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && Candidate?.BookUid != _openedForUid)
+        {
+            _openedForUid = Candidate?.BookUid;
+            _premiumSelected = false;
+        }
+    }
+
+    private static string ResolveCover(string? url) => string.IsNullOrWhiteSpace(url) ? "imgs/app_logo.png" : url!;
+
+    private async Task Confirm()
+    {
+        await Close();
+        await OnConfirm.InvokeAsync(_premiumSelected);
+    }
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}

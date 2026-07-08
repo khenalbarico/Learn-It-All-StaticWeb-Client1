@@ -8,20 +8,67 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
 {
     public bool IsAuthenticated { get; private set; }
     public bool IsInitializing { get; private set; } = true;
+    public bool IsResolvingSession { get; private set; }
     public UserInfo? CurrentUser { get; private set; }
     public string? ProfileLoadError { get; private set; }
+    public bool SignInModalOpen { get; private set; }
+
+    // True while we're mid-transition (e.g. just came back from the identity
+    // provider redirect) and haven't yet confirmed both the auth state AND
+    // the profile. Consumers must treat this exactly like IsInitializing -
+    // otherwise there's a window where a stale "guest" state can render with
+    // clickable sign-in buttons a split second before the real state lands.
+    public bool IsBusy => IsInitializing || IsResolvingSession;
+
+    public bool NeedsProfileSetup
+        => !IsBusy
+        && IsAuthenticated
+        && CurrentUser is null
+        && ProfileLoadError is null;
 
     public event Action? OnChange;
 
     public async Task FastInitializeAsync()
     {
-        await _auth.TryRestoreSessionAsync();
-        IsAuthenticated = _auth.IsAuthenticated;
-        IsInitializing = false;
-        OnChange?.Invoke();
+        _auth.StateChanged += HandleAuthStateChanged;
+
+        IsAuthenticated = await _auth.IsAuthenticatedAsync();
 
         if (IsAuthenticated)
-            _ = LoadProfileAsync();
+            await LoadProfileAsync();
+
+        IsInitializing = false;
+        OnChange?.Invoke();
+    }
+
+    private async void HandleAuthStateChanged()
+    {
+        IsResolvingSession = true;
+        OnChange?.Invoke();
+
+        var wasAuthenticated = IsAuthenticated;
+        IsAuthenticated = await _auth.IsAuthenticatedAsync();
+
+        if (IsAuthenticated && !wasAuthenticated)
+        {
+            SignInModalOpen = false;
+            await LoadProfileAsync();
+        }
+
+        IsResolvingSession = false;
+        OnChange?.Invoke();
+    }
+
+    public void OpenSignInModal()
+    {
+        SignInModalOpen = true;
+        OnChange?.Invoke();
+    }
+
+    public void CloseSignInModal()
+    {
+        SignInModalOpen = false;
+        OnChange?.Invoke();
     }
 
     public async Task LoadProfileAsync()
@@ -47,35 +94,60 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
 
     public Task RefreshProfileAsync() => LoadProfileAsync();
 
-    public async Task<AuthResult> SignInAsync(string email, string password)
+    public void UpdateLocalReadingProgress(string bookUid, string docUid, int page, int totalPages)
     {
-        var result = await _auth.SignInWithEmailAsync(email, password);
-        IsAuthenticated = true;
+        var entry = CurrentUser?.Library.FirstOrDefault(l => l.Uid == bookUid);
+        if (entry is null) return;
+
+        var now = DateTime.UtcNow;
+
+        var docProgress = entry.DocumentsProgress.FirstOrDefault(d => d.DocUid == docUid);
+        if (docProgress is null)
+        {
+            docProgress = new DocumentProgress { DocUid = docUid };
+            entry.DocumentsProgress.Add(docProgress);
+        }
+
+        docProgress.Page = page;
+        docProgress.TotalPages = totalPages;
+        docProgress.LastReadAt = now;
+
+        entry.LastReadDocUid = docUid;
+        entry.LastReadPage = page;
+        entry.LastReadTotalPages = totalPages;
+        entry.LastReadAt = now;
         OnChange?.Invoke();
-        _ = LoadProfileAsync();
-        _ = _appService.LogActivity("Logged in");
-        return result;
     }
 
-    public Task RegisterAsync(string email, string password)
-        => _auth.RegisterWithEmailAsync(email, password);
-
-    public async Task CompleteVerificationAsync()
+    public void AddToCartLocal(string bookUid, bool isPremium = false)
     {
-        await _auth.CheckEmailVerifiedAsync();
-        IsAuthenticated = true;
+        if (CurrentUser is null) return;
+        if (CurrentUser.Cart.Any(c => c.BookUid == bookUid)) return;
+
+        CurrentUser.Cart.Add(new CartItem { BookUid = bookUid, AddedAt = DateTime.UtcNow, IsPremium = isPremium });
         OnChange?.Invoke();
-        _ = LoadProfileAsync();
     }
+
+    public void RemoveFromCartLocal(string bookUid)
+    {
+        if (CurrentUser is null) return;
+        if (CurrentUser.Cart.RemoveAll(c => c.BookUid == bookUid) > 0)
+            OnChange?.Invoke();
+    }
+
+    public void BeginSignIn(string returnUrl = "auth")
+        => _auth.SignIn(returnUrl);
 
     public async Task SignOutAsync()
     {
         await _appService.LogActivity("Logged out");
 
-        _auth.SignOut();
         IsAuthenticated = false;
         CurrentUser = null;
+        SignInModalOpen = false;
         _libraryCache.ClearAll();
         OnChange?.Invoke();
+
+        _auth.SignOut("/");
     }
 }

@@ -11,5 +11,10 @@ public enum ApiFunctions
     RecordPurchase,
     CreatePaymentIntent,
     GetPaymentStatus,
-    LogActivity
+    LogActivity,
+    UpdateUserKeywords,
+    SaveReadingProgress,
+    SetFavorite,
+    AddToCart,
+    RemoveFromCart
 }

@@ -4,14 +4,53 @@
         <div class="modal-box doc-list-modal" @onclick:stopPropagation="true">
             <h3>@BookTitle</h3>
             <p class="form-hint">Choose a document to read.</p>
+
+            @if (ShowUpgradeBanner)
+            {
+                <button class="premium-upsell-banner" @onclick="UpgradeClicked">
+                    <Icon Name="lock" Size="16" />
+                    <span><strong>Premium available</strong> — unlock the premium inclusions of this book.</span>
+                </button>
+            }
+
             <div class="doc-list">
-                @for (var i = 0; i < Documents.Count; i++)
+                @{ var index = 0; }
+                @foreach (var doc in RootDocuments)
                 {
-                    var doc = Documents[i];
-                    <button class="doc-list-item" style="--card-index: @i" @onclick="() => SelectDocument(doc)">
-                        <Icon Name="book" Size="18" />
-                        <span>@(string.IsNullOrWhiteSpace(doc.Title) ? $"Document {i + 1}" : doc.Title)</span>
+                    <DocumentListItem Doc="doc" Index="index" OwnsPremium="OwnsPremium" OnSelect="SelectDocument" OnLockedSelect="UpgradeClicked" />
+                    index++;
+                }
+
+                @foreach (var folder in Folders)
+                {
+                    var folderPremium = folder.All(d => d.IsPremium);
+                    var folderLocked = folderPremium && !OwnsPremium;
+                    var isExpanded = _expandedFolders.Contains(folder.Key);
+
+                    <button class="doc-folder-header @(folderPremium ? "premium" : "") @(folderLocked ? "locked" : "")"
+                            style="--card-index: @index"
+                            @onclick="() => ToggleFolder(folder.Key)">
+                        <Icon Name="@(isExpanded ? "chevron-down" : "chevron-right")" Size="14" />
+                        <Icon Name="folder" Size="16" />
+                        <span class="doc-folder-name">@folder.Key.Replace("/", " / ")</span>
+                        <span class="doc-folder-count">@folder.Count()</span>
+                        @if (folderPremium)
+                        {
+                            <span class="badge badge-premium">@(folderLocked ? "🔒 Premium" : "★ Premium")</span>
+                        }
                     </button>
+                    index++;
+
+                    @if (isExpanded)
+                    {
+                        <div class="doc-folder-items">
+                            @foreach (var doc in folder)
+                            {
+                                <DocumentListItem Doc="doc" Index="index" OwnsPremium="OwnsPremium" OnSelect="SelectDocument" OnLockedSelect="UpgradeClicked" />
+                                index++;
+                            }
+                        </div>
+                    }
                 }
             </div>
             <button class="btn btn-ghost btn-block" @onclick="Close">Cancel</button>
@@ -24,12 +63,41 @@
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
     [Parameter] public string BookTitle { get; set; } = "";
     [Parameter] public List<BookDocs> Documents { get; set; } = [];
+    [Parameter] public bool OwnsPremium { get; set; }
+    [Parameter] public bool HasPremiumTier { get; set; }
     [Parameter] public EventCallback<BookDocs> OnDocumentSelected { get; set; }
+    [Parameter] public EventCallback OnUpgradeClick { get; set; }
+
+    private readonly HashSet<string> _expandedFolders = new(StringComparer.OrdinalIgnoreCase);
+
+    private bool ShowUpgradeBanner => HasPremiumTier && !OwnsPremium;
+
+    private IEnumerable<BookDocs> RootDocuments
+        => Documents.Where(d => string.IsNullOrEmpty(d.Folder));
+
+    private IEnumerable<IGrouping<string, BookDocs>> Folders
+        => Documents
+            .Where(d => !string.IsNullOrEmpty(d.Folder))
+            .GroupBy(d => d.Folder, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => g.All(d => d.IsPremium))
+            .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
+
+    private void ToggleFolder(string folder)
+    {
+        if (!_expandedFolders.Remove(folder))
+            _expandedFolders.Add(folder);
+    }
 
     private async Task SelectDocument(BookDocs doc)
     {
         await Close();
         await OnDocumentSelected.InvokeAsync(doc);
+    }
+
+    private async Task UpgradeClicked()
+    {
+        await Close();
+        await OnUpgradeClick.InvokeAsync();
     }
 
     private async Task Close()

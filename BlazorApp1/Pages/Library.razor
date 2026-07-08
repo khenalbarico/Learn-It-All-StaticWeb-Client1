@@ -16,9 +16,18 @@
         <p class="banner">You're browsing as a guest. Sample books are shown below &mdash; authenticate to see the real catalog.</p>
     }
 
-    <CategoryTabs Categories="_categories" SelectedCategory="_selectedCategory" SelectedCategoryChanged="OnCategoryChanged" IsBusy="_loading" />
+    <CategoryTabs Categories="_categories" SelectedCategory="@_selectedCategory" SelectedCategoryChanged="OnCategoryChanged" IsBusy="_loading" />
 
-    @if (AuthState.IsInitializing || _loading)
+    <div class="search-field">
+        <Icon Name="search" Size="18" />
+        <input type="search" placeholder="Search books..." value="@_searchTerm" @oninput="OnSearchInput" />
+    </div>
+
+    @if (AuthState.IsAuthenticated && AuthState.ProfileLoadError is not null)
+    {
+        <ErrorBanner Message="@AuthState.ProfileLoadError" OnRetry="() => AuthState.RefreshProfileAsync()" />
+    }
+    else if (AuthState.IsInitializing || (AuthState.IsAuthenticated && AuthState.CurrentUser is null) || _loading)
     {
         <div class="book-grid">
             @for (var i = 0; i < 8; i++)
@@ -33,7 +42,7 @@
     }
     else if (_books.Count == 0)
     {
-        <EmptyState Message="No books in this category yet." />
+        <EmptyState Message="@(string.IsNullOrWhiteSpace(_searchTerm) ? "No books in this category yet." : $"No books match \"{_searchTerm}\".")" />
     }
     else
     {
@@ -45,23 +54,31 @@
                     <BookCard Title="@book.Title"
                               CoverImageUrl="@book.CoverImageUrl"
                               Price="@book.Price"
+                              PremiumPrice="@book.PremiumPrice"
+                              IsOwned="@IsOwned(book.Uid)"
+                              IsPremiumOwned="@IsPremiumOwned(book.Uid)"
                               ShowPrice="@(!IsOwned(book.Uid))"
                               ActionLabel="@(IsOwned(book.Uid) ? "Owned" : "Buy")"
-                              OnActionClick="() => OnBuyClick(book)" />
+                              ShowActionButton="@(!IsOwned(book.Uid))"
+                              OnActionClick="() => OnBuyClick(book)"
+                              ShowAddToCartButton="@(AuthState.IsAuthenticated && !IsOwned(book.Uid))"
+                              IsInCart="@IsInCart(book.Uid)"
+                              OnAddToCart="() => OnAddToCart(book)" />
                 </div>
             }
         </div>
     }
 </div>
 
-<ComingSoonModal @bind-IsOpen="_comingSoonOpen" />
+<AuthRequiredModal @bind-IsOpen="_authRequiredOpen" />
 
 <BuyBookModal @bind-IsOpen="_paymentModalOpen"
-              BookUid="@_purchasingBookUid"
-              BookTitle="@_purchasingBookTitle"
-              BookDescription="@_purchasingBookDescription"
-              BookCoverUrl="@_purchasingBookCoverUrl"
-              BookPrice="@_purchasingBookPrice" />
+              Items="_checkoutItems"
+              OnPurchased="OnBookPurchased" />
+
+<AddToCartModal @bind-IsOpen="_addToCartModalOpen"
+                Candidate="_addToCartCandidate"
+                OnConfirm="ConfirmAddToCart" />
 
 @code {
     private readonly List<(string Value, string Label)> _categories =
@@ -70,28 +87,64 @@
         ("Reviewer", "Reviewer")
     ];
 
+    [SupplyParameterFromQuery(Name = "category")]
+    [Parameter]
+    public string? CategoryQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "buy")]
+    [Parameter]
+    public string? BuyBookUid { get; set; }
+
+    private string? _autoBuyHandledFor;
+
     private string _selectedCategory = "CollegeCourse";
-    private List<BookCardData> _books = [];
+    private List<BookCardData> _categoryBooks = [];
+    private string _searchTerm = "";
     private bool _loading;
     private string? _error;
-    private bool _comingSoonOpen;
+    private bool _authRequiredOpen;
     private bool _paymentModalOpen;
-    private string _purchasingBookUid = "";
-    private string _purchasingBookTitle = "";
-    private string? _purchasingBookDescription;
-    private string? _purchasingBookCoverUrl;
-    private decimal _purchasingBookPrice;
+    private List<CheckoutItem> _checkoutItems = [];
+    private bool _addToCartModalOpen;
+    private CheckoutItem? _addToCartCandidate;
     private List<DummyBook>? _dummyCatalog;
+
+    private List<BookCardData> _books => string.IsNullOrWhiteSpace(_searchTerm)
+        ? _categoryBooks
+        : _categoryBooks.Where(b => b.Title.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
 
     protected override void OnInitialized()
     {
         AuthState.OnChange += OnAuthChanged;
+
+        if (!string.IsNullOrWhiteSpace(CategoryQuery))
+        {
+            var match = _categories.FirstOrDefault(c => string.Equals(c.Value, CategoryQuery, StringComparison.OrdinalIgnoreCase));
+            if (match != default)
+                _selectedCategory = match.Value;
+        }
     }
+
+    private void OnSearchInput(ChangeEventArgs e) => _searchTerm = e.Value?.ToString() ?? "";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
             await LoadCategoryAsync(_selectedCategory);
+
+        TryAutoOpenBuyModal();
+    }
+
+    private void TryAutoOpenBuyModal()
+    {
+        if (string.IsNullOrWhiteSpace(BuyBookUid) || BuyBookUid == _autoBuyHandledFor || _loading) return;
+
+        var match = _categoryBooks.FirstOrDefault(b => b.Uid == BuyBookUid);
+        if (match is null) return;
+
+        _autoBuyHandledFor = BuyBookUid;
+        OnBuyClick(match);
+        StateHasChanged();
     }
 
     private async void OnAuthChanged()
@@ -109,6 +162,7 @@
     private async Task LoadCategoryAsync(string category)
     {
         if (AuthState.IsInitializing) return;
+        if (AuthState.IsAuthenticated && AuthState.CurrentUser is null) return;
 
         _loading = true;
         _error = null;
@@ -116,37 +170,40 @@
 
         try
         {
+            List<BookCardData> books;
             if (AuthState.IsAuthenticated)
             {
                 if (LibraryCache.TryGetCategory(category, out var cached))
                 {
-                    _books = cached.Select(ToCardData).ToList();
+                    books = cached.Select(ToCardData).ToList();
                 }
                 else
                 {
                     var fetched = await AppService.GetBooksByCategory(category);
                     LibraryCache.SetCategory(category, fetched);
-                    _books = fetched.Select(ToCardData).ToList();
+                    books = fetched.Select(ToCardData).ToList();
                 }
             }
             else
             {
                 _dummyCatalog ??= await Http.GetFromJsonAsync<List<DummyBook>>("data/dummy-books.json") ?? [];
-                _books = _dummyCatalog
+                books = _dummyCatalog
                     .Where(b => string.Equals(b.Category, category, StringComparison.OrdinalIgnoreCase))
                     .Select(ToCardData)
                     .ToList();
             }
+
+            _categoryBooks = books.OrderBy(b => b.Title, StringComparer.OrdinalIgnoreCase).ToList();
         }
         catch (ApiUnavailableException ex)
         {
             _error = ex.Message;
-            _books = [];
+            _categoryBooks = [];
         }
         catch (Exception)
         {
             _error = "Could not load books for this category. Please try again.";
-            _books = [];
+            _categoryBooks = [];
         }
         finally
         {
@@ -165,27 +222,55 @@
 
         if (AuthState.IsAuthenticated && !string.IsNullOrEmpty(book.Uid))
         {
-            _purchasingBookUid = book.Uid;
-            _purchasingBookTitle = book.Title;
-            _purchasingBookDescription = book.Description;
-            _purchasingBookCoverUrl = book.CoverImageUrl;
-            _purchasingBookPrice = book.Price;
+            _checkoutItems = [new CheckoutItem(book.Uid, book.Title, book.CoverImageUrl, book.Price, book.Description, book.PremiumPrice)];
             _paymentModalOpen = true;
         }
         else
         {
-            _comingSoonOpen = true;
+            _authRequiredOpen = true;
         }
     }
 
     private bool IsOwned(string bookUid)
         => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Library.Any(l => l.Uid == bookUid) == true;
 
-    private static BookCardData ToCardData(Book book) => new(book.Uid, book.Title ?? "Untitled", book.ImageCoverUrl, book.Price, book.Description);
+    private bool IsPremiumOwned(string bookUid)
+        => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == bookUid)?.IsPremium == true;
 
-    private static BookCardData ToCardData(DummyBook book) => new("", book.Title, book.CoverImage, book.Price, book.Description);
+    private bool IsInCart(string bookUid)
+        => !string.IsNullOrEmpty(bookUid) && AuthState.CurrentUser?.Cart.Any(c => c.BookUid == bookUid) == true;
 
-    private record BookCardData(string Uid, string Title, string? CoverImageUrl, decimal Price, string? Description);
+    private async Task OnAddToCart(BookCardData book)
+    {
+        if (string.IsNullOrEmpty(book.Uid) || IsOwned(book.Uid) || IsInCart(book.Uid)) return;
+
+        if (book.PremiumPrice is not null)
+        {
+            _addToCartCandidate = new CheckoutItem(book.Uid, book.Title, book.CoverImageUrl, book.Price, book.Description, book.PremiumPrice);
+            _addToCartModalOpen = true;
+            return;
+        }
+
+        AuthState.AddToCartLocal(book.Uid);
+        await AppService.AddToCart(book.Uid);
+    }
+
+    private async Task ConfirmAddToCart(bool isPremium)
+    {
+        if (_addToCartCandidate is null) return;
+
+        AuthState.AddToCartLocal(_addToCartCandidate.BookUid, isPremium);
+        await AppService.AddToCart(_addToCartCandidate.BookUid, isPremium);
+        _addToCartCandidate = null;
+    }
+
+    private async Task OnBookPurchased() => await AuthState.RefreshProfileAsync();
+
+    private static BookCardData ToCardData(Book book) => new(book.Uid, book.Title ?? "Untitled", book.ImageCoverUrl, book.Price, book.Description, book.PremiumPrice);
+
+    private static BookCardData ToCardData(DummyBook book) => new("", book.Title, book.CoverImage, book.Price, book.Description, null);
+
+    private record BookCardData(string Uid, string Title, string? CoverImageUrl, decimal Price, string? Description, decimal? PremiumPrice);
 
     public void Dispose()
     {
