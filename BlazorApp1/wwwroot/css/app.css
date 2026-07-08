@@ -540,6 +540,7 @@ h1:focus-visible {
 
     .book-row-scroll > * {
         flex: 0 0 190px;
+        min-width: 0;
         scroll-snap-align: start;
         animation: fadeInUp var(--duration-slow) var(--ease-out) both;
         animation-delay: calc(var(--card-index, 0) * 45ms);
@@ -683,6 +684,7 @@ h1:focus-visible {
 .book-card-description {
     font-size: 0.8rem;
     line-height: 1.35;
+    min-height: calc(1.35em * 3);
     color: var(--color-text-muted);
     margin: 0;
     overflow: hidden;
@@ -1637,6 +1639,7 @@ code {
 
         .book-grid:not(.modal-book-grid) > * {
             flex: 0 0 150px;
+            min-width: 0;
             scroll-snap-align: start;
         }
 
@@ -1646,6 +1649,7 @@ code {
 
         .book-row-scroll > * {
             flex-basis: 150px;
+            min-width: 0;
         }
 
     .book-card-footer {
