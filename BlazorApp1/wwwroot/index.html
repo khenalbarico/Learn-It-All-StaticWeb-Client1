@@ -51,7 +51,11 @@
     <script src="_content/Microsoft.Authentication.WebAssembly.Msal/AuthenticationService.js"></script>
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
     <script>
-        navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });
+        navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' }).then(registration => {
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') registration.update();
+            });
+        });
 
         // A new deployment's service worker now claims already-open tabs immediately
         // (see service-worker.published.js). Reload once when that handoff happens so
