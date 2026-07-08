@@ -65,6 +65,7 @@
                         <BookCard Title="@(book.Title ?? "Untitled")"
                                   CoverImageUrl="@book.ImageCoverUrl"
                                   ShowPrice="false"
+                                  IsOwned="true"
                                   IsPremiumOwned="@OwnsPremium(book.Uid)"
                                   MetaText="@(HasPremiumUpsell(book) ? "★ Premium available" : null)"
                                   ActionLabel="Read"
