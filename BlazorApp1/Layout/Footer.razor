@@ -7,6 +7,7 @@
             <a href="terms-of-service">Terms of Service</a>
         </nav>
 
-        <span class="footer-copy">© @DateTime.UtcNow.Year Learn It All. All rights reserved.</span>
+        @* Build stamp — the quickest way to confirm which deployment a tab is actually running. *@
+        <span class="footer-copy">© @DateTime.UtcNow.Year Learn It All. All rights reserved. · @AppVersion.Display</span>
     </div>
 </footer>

@@ -6,10 +6,6 @@ export function setItem(key, value) {
     localStorage.setItem(key, value);
 }
 
-export function removeItem(key) {
-    localStorage.removeItem(key);
-}
-
 export function setThemeAttribute(theme) {
     document.documentElement.setAttribute('data-theme', theme);
 }
@@ -175,15 +171,8 @@ function attachPinchZoom(containerId, container) {
 // pdf.js fetches straight from the presigned R2 URL and streams the file in ranges,
 // so the PDF never passes through the API and only the pages in view are downloaded.
 export async function loadPdfFromUrl(containerId, url) {
-    return loadPdfInternal(containerId, { url, withCredentials: false });
-}
-
-export async function loadPdf(containerId, bytes) {
-    return loadPdfInternal(containerId, { data: bytes });
-}
-
-async function loadPdfInternal(containerId, source) {
     const pdfjsLib = await getPdfjsLib();
+    const source = { url, withCredentials: false };
 
     const existing = pdfViewers.get(containerId);
     if (existing) {
@@ -240,12 +229,6 @@ export function disposePdf(containerId) {
     }
 }
 
-export function preloadImages(urls) {
-    for (const url of urls) {
-        const img = new Image();
-        img.src = url;
-    }
-}
 
 export function pushAdsbygoogle() {
     // Blazor has just inserted the <ins> into the DOM, but under load (e.g. during

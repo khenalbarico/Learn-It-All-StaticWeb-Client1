@@ -1,25 +1,21 @@
 @implements IDisposable
 @inject ThemeService ThemeService
 
-<button class="btn btn-ghost theme-toggle" @onclick="Toggle" title="Toggle dark / light mode" aria-label="Toggle dark or light mode">
-    <span class="icon-spin-in" @key="ThemeService.CurrentTheme">
-        <Icon Name="@(ThemeService.CurrentTheme == AppTheme.Dark ? "sun" : "moon")" />
-    </span>
+@* Names must be real Material Symbols ligatures — an unknown name renders as its own
+   literal text instead of a glyph. *@
+<button class="btn btn-ghost" @onclick="Toggle"
+        title="@Label" aria-label="@Label">
+    <Icon Name="@(IsDark ? "light_mode" : "dark_mode")" Size="22" />
 </button>
 
 @code {
-    protected override void OnInitialized()
-    {
-        ThemeService.OnChange += StateHasChanged;
-    }
+    private bool IsDark => ThemeService.CurrentTheme == AppTheme.Dark;
 
-    private async Task Toggle()
-    {
-        await ThemeService.ToggleAsync();
-    }
+    private string Label => IsDark ? "Switch to light mode" : "Switch to dark mode";
 
-    public void Dispose()
-    {
-        ThemeService.OnChange -= StateHasChanged;
-    }
+    protected override void OnInitialized() => ThemeService.OnChange += StateHasChanged;
+
+    private Task Toggle() => ThemeService.ToggleAsync();
+
+    public void Dispose() => ThemeService.OnChange -= StateHasChanged;
 }

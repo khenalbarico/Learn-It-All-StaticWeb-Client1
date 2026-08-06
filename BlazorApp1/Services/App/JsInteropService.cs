@@ -21,12 +21,6 @@ public class JsInteropService(IJSRuntime _jsRuntime)
         await module.InvokeVoidAsync("setItem", key, value);
     }
 
-    public async Task RemoveItemAsync(string key)
-    {
-        var module = await GetModuleAsync();
-        await module.InvokeVoidAsync("removeItem", key);
-    }
-
     public async Task SetThemeAttributeAsync(string theme)
     {
         var module = await GetModuleAsync();
@@ -61,12 +55,6 @@ public class JsInteropService(IJSRuntime _jsRuntime)
     {
         var module = await GetModuleAsync();
         await module.InvokeVoidAsync("disposePdf", containerId);
-    }
-
-    public async Task PreloadImagesAsync(IEnumerable<string> urls)
-    {
-        var module = await GetModuleAsync();
-        await module.InvokeVoidAsync("preloadImages", urls);
     }
 
     public async Task PushAdsbygoogleAsync()
