@@ -172,7 +172,17 @@ function attachPinchZoom(containerId, container) {
     };
 }
 
+// pdf.js fetches straight from the presigned R2 URL and streams the file in ranges,
+// so the PDF never passes through the API and only the pages in view are downloaded.
+export async function loadPdfFromUrl(containerId, url) {
+    return loadPdfInternal(containerId, { url, withCredentials: false });
+}
+
 export async function loadPdf(containerId, bytes) {
+    return loadPdfInternal(containerId, { data: bytes });
+}
+
+async function loadPdfInternal(containerId, source) {
     const pdfjsLib = await getPdfjsLib();
 
     const existing = pdfViewers.get(containerId);
@@ -189,7 +199,7 @@ export async function loadPdf(containerId, bytes) {
         }
     }
 
-    const loadingTask = pdfjsLib.getDocument({ data: bytes });
+    const loadingTask = pdfjsLib.getDocument(source);
     const doc = await loadingTask.promise;
 
     pdfViewers.set(containerId, { doc, pageNum: 1, zoom: 1, rendering: false });

@@ -2,119 +2,90 @@
 @inject AuthSessionState AuthState
 @inject NavigationManager Nav
 
-<nav class="nav-bar">
-    <div class="nav-inner">
-        <a class="nav-brand" href="/">
-            <img src="imgs/app_logo.png" alt="Learn It All" />
-            <span>Learn It All</span>
-        </a>
+<header class="site-header">
+    <div class="container">
+        <a class="brand" href="/">Learn It All</a>
 
-        @if (ShowFullNav)
-        {
-            <button class="nav-burger" @onclick="ToggleMenu" aria-label="Toggle navigation menu">
-                <span class="icon-spin-in" @key="_menuOpen">
-                    <Icon Name="@(_menuOpen ? "close" : "menu")" Size="24" />
-                </span>
+        <div class="header-search">
+            <Icon Name="search" />
+            <input class="input" type="search" placeholder="Search by title or description"
+                   value="@SearchState.Query" @oninput="OnSearchInput" aria-label="Search books" />
+        </div>
+
+        <nav class="header-nav @(_menuOpen ? "open" : "")">
+            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">Shop</NavLink>
+            <NavLink class="nav-link" href="my-library">Library</NavLink>
+            <NavLink class="nav-link" href="account">Account</NavLink>
+        </nav>
+
+        <div class="header-actions">
+            <ThemeToggle />
+
+            @if (AuthState.IsBusy)
+            {
+                <span class="spinner" aria-label="Loading"></span>
+            }
+            else if (AuthState.IsAuthenticated)
+            {
+                <a href="account" aria-label="Your account">
+                    @if (!string.IsNullOrWhiteSpace(AuthState.PhotoUrl))
+                    {
+                        <img class="avatar" src="@AuthState.PhotoUrl" alt="" referrerpolicy="no-referrer" />
+                    }
+                    else
+                    {
+                        <span class="avatar avatar-fallback">@Initial</span>
+                    }
+                </a>
+            }
+            else
+            {
+                <button class="btn btn-primary btn-sm" @onclick="() => AuthState.OpenSignInModal()">Sign in</button>
+            }
+
+            <button class="btn btn-ghost nav-toggle" @onclick="() => _menuOpen = !_menuOpen" aria-label="Toggle navigation">
+                <Icon Name="@(_menuOpen ? "close" : "menu")" Size="24" />
             </button>
-
-            <div class="nav-links @(_menuOpen ? "open" : "")">
-                <NavLink href="/" Match="NavLinkMatch.All" @onclick="CloseMenu">Home</NavLink>
-                <NavLink href="/library" @onclick="CloseMenu">Library</NavLink>
-                <NavLink href="/my-library" @onclick="CloseMenu">My Library</NavLink>
-                <NavLink href="/account" @onclick="CloseMenu">Account</NavLink>
-
-                <div class="nav-actions">
-                    <ThemeToggle />
-                    <button class="btn btn-ghost nav-cart-btn" @onclick="OpenCart" aria-label="View cart" title="Cart">
-                        <Icon Name="cart" Size="20" />
-                        @if (CartCount > 0)
-                        {
-                            <span class="cart-badge">@CartCount</span>
-                        }
-                    </button>
-                    <button class="btn btn-secondary" @onclick="RequestSignOut" disabled="@_guard.IsBusy">
-                        <Icon Name="logout" Size="16" />
-                        Log Out@(string.IsNullOrWhiteSpace(AuthState.CurrentUser?.FirstName) ? "" : $" ({AuthState.CurrentUser!.FirstName})")
-                    </button>
-                </div>
-            </div>
-        }
-        else
-        {
-            <div class="nav-actions nav-actions-slim">
-                <ThemeToggle />
-                @if (AuthState.IsBusy)
-                {
-                    <span class="nav-spinner" aria-label="Signing in"></span>
-                }
-                else if (AuthState.IsAuthenticated)
-                {
-                    <button class="btn btn-secondary" @onclick="RequestSignOut" disabled="@_guard.IsBusy">
-                        <Icon Name="logout" Size="16" />
-                        Log Out
-                    </button>
-                }
-                else
-                {
-                    <button class="btn btn-primary" @onclick="AuthState.OpenSignInModal">
-                        <Icon Name="user" Size="16" />
-                        Log In
-                    </button>
-                }
-            </div>
-        }
+        </div>
     </div>
-</nav>
-
-<CartDrawer @bind-IsOpen="_cartOpen" />
-
-<ConfirmModal @bind-IsOpen="_signOutConfirmOpen"
-              Title="Log out?"
-              Message="Are you sure you want to log out?"
-              ConfirmLabel="Log Out"
-              IconName="logout"
-              OnConfirm="ConfirmSignOut" />
+</header>
 
 @code {
     private bool _menuOpen;
-    private bool _cartOpen;
-    private bool _signOutConfirmOpen;
-    private readonly SubmitGuard _guard = new();
 
-    private int CartCount => AuthState.CurrentUser?.Cart.Count ?? 0;
-
-    private bool ShowFullNav
-        => !AuthState.IsBusy && AuthState.IsAuthenticated && !AuthState.NeedsProfileSetup && AuthState.ProfileLoadError is null;
+    private string Initial
+    {
+        get
+        {
+            var source = AuthState.CurrentUser?.DisplayName;
+            return string.IsNullOrWhiteSpace(source) ? "?" : source.Trim()[..1].ToUpperInvariant();
+        }
+    }
 
     protected override void OnInitialized()
     {
-        AuthState.OnChange += StateHasChanged;
+        AuthState.OnChange += OnStateChanged;
+        SearchState.OnChange += OnStateChanged;
     }
 
-    private void ToggleMenu() => _menuOpen = !_menuOpen;
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
 
-    private void CloseMenu() => _menuOpen = false;
-
-    private void OpenCart()
+    // Searching from any page lands on the catalogue, which is what actually filters.
+    private void OnSearchInput(ChangeEventArgs e)
     {
-        CloseMenu();
-        _cartOpen = true;
+        SearchState.SetQuery(e.Value?.ToString() ?? "");
+        _menuOpen = false;
+
+        if (!Nav.ToBaseRelativePath(Nav.Uri).StartsWith("books", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(SearchState.Query))
+        {
+            Nav.NavigateTo("books");
+        }
     }
-
-    private void RequestSignOut()
-    {
-        CloseMenu();
-        _signOutConfirmOpen = true;
-    }
-
-    private Task ConfirmSignOut() => _guard.RunAsync(async () =>
-    {
-        await AuthState.SignOutAsync();
-        Nav.NavigateTo("/");
-    });
 
     public void Dispose()
     {
-        AuthState.OnChange -= StateHasChanged;
+        AuthState.OnChange -= OnStateChanged;
+        SearchState.OnChange -= OnStateChanged;
     }
 }

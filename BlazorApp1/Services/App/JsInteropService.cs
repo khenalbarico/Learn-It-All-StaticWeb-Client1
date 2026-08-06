@@ -39,10 +39,10 @@ public class JsInteropService(IJSRuntime _jsRuntime)
         return await module.InvokeAsync<bool>("prefersDarkColorScheme");
     }
 
-    public async Task<int> LoadPdfAsync(string containerId, byte[] bytes)
+    public async Task<int> LoadPdfFromUrlAsync(string containerId, string url)
     {
         var module = await GetModuleAsync();
-        return await module.InvokeAsync<int>("loadPdf", containerId, bytes);
+        return await module.InvokeAsync<int>("loadPdfFromUrl", containerId, url);
     }
 
     public async Task<int> GoToPdfPageAsync(string containerId, int pageNum)

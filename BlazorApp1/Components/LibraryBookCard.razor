@@ -1,0 +1,40 @@
+@* My Library card: cover, title, reading progress, and Read Now / Read Again. *@
+
+<article class="book-card">
+    <div class="book-cover">
+        @if (!string.IsNullOrWhiteSpace(Book.ImageCoverUrl))
+        {
+            <img src="@Book.ImageCoverUrl" alt="Cover of @(Book.Title ?? "this book")" loading="lazy" />
+        }
+        else
+        {
+            <div class="cover-placeholder"><Icon Name="menu_book" Size="48" /></div>
+        }
+    </div>
+
+    <div class="book-body">
+        <h3 class="book-title">@(Book.Title ?? "Untitled")</h3>
+
+        <div class="progress-row">
+            <div class="progress-track">
+                <div class="progress-fill" style="width:@(Percent)%"></div>
+            </div>
+            <span class="progress-label">@Percent% Complete</span>
+        </div>
+
+        <div class="book-footer">
+            <button class="@(Percent >= 100 ? "btn btn-outline btn-block" : "btn btn-primary btn-block")"
+                    @onclick="() => OnRead.InvokeAsync(Book)">
+                @(Percent >= 100 ? "Read Again" : Percent > 0 ? "Continue Reading" : "Read Now")
+            </button>
+        </div>
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public Book Book { get; set; } = new();
+    [Parameter] public UserLibrary? Entry { get; set; }
+    [Parameter] public EventCallback<Book> OnRead { get; set; }
+
+    private int Percent => Entry?.ProgressPercent ?? 0;
+}

@@ -1,28 +1,28 @@
 @implements IDisposable
 @inject AuthSessionState AuthState
 
+@* Shown once, straight after a first sign-in, before the user can do anything else. *@
 @if (AuthState.NeedsProfileSetup)
 {
-    <div class="modal-backdrop takeover-backdrop">
-        <div class="modal-box profile-setup-modal" @onclick:stopPropagation="true">
-            <div class="icon-badge">
-                <Icon Name="user" Size="28" />
+    <div class="modal-backdrop">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="profile-title">
+            <div class="modal-header">
+                <h3 id="profile-title">Tell us about yourself</h3>
             </div>
-            <ProfileCollectionForm OnProfileSaved="OnProfileSaved" />
+            <div class="modal-body">
+                <p style="margin-bottom:1rem">We just need a few details to finish setting up your account.</p>
+                <ProfileCollectionForm OnCompleted="HandleCompleted" />
+            </div>
         </div>
     </div>
 }
 
 @code {
-    protected override void OnInitialized()
-        => AuthState.OnChange += OnAuthChanged;
+    protected override void OnInitialized() => AuthState.OnChange += OnStateChanged;
 
-    private void OnAuthChanged()
-        => InvokeAsync(StateHasChanged);
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
 
-    private Task OnProfileSaved()
-        => AuthState.RefreshProfileAsync();
+    private Task HandleCompleted() => AuthState.RefreshProfileAsync();
 
-    public void Dispose()
-        => AuthState.OnChange -= OnAuthChanged;
+    public void Dispose() => AuthState.OnChange -= OnStateChanged;
 }

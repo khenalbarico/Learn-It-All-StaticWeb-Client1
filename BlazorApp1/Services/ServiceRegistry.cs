@@ -8,19 +8,18 @@ namespace BlazorApp1.Services;
 
 public static class ServiceRegistry
 {
-    public static IServiceCollection AddLearnItAllServices(this IServiceCollection services, string apiEnvironment)
+    public static IServiceCollection AddLearnItAllServices(this IServiceCollection services, string apiEnvironment, FirebaseCfg firebaseCfg)
     {
         services.AddSingleton<IAdSenseCfg, AdSenseWebCfg>();
         services.AddSingleton<JsInteropService>();
-        services.AddScoped<IAppAuthentication, EntraAuthentication>();
+
+        services.AddSingleton(firebaseCfg);
+        services.AddScoped<IAppAuthentication, FirebaseAuthentication>();
 
         services.AddSingleton<IApiUrlGetter, ApiUrlGetter>();
         services.AddHttpClient("LearnItAllApi", (sp, client) =>
         {
-            var apiUrlGetter = sp.GetRequiredService<IApiUrlGetter>();
-            var apiUrl       = apiUrlGetter.GetApiUrl(apiEnvironment);
-
-            client.BaseAddress = new Uri(apiUrl);
+            client.BaseAddress = new Uri(sp.GetRequiredService<IApiUrlGetter>().GetApiUrl(apiEnvironment));
             client.Timeout     = TimeSpan.FromSeconds(20);
             client.DefaultRequestHeaders.Add("Accept", "application/json");
         });
@@ -28,6 +27,7 @@ public static class ServiceRegistry
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("LearnItAllApi"),
             sp.GetRequiredService<IAppAuthentication>()));
 
+        services.AddScoped<TokenVerificationCache>();
         services.AddScoped<IAppService, AppService>();
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddSingleton<LibraryCacheService>();

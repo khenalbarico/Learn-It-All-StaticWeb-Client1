@@ -8,13 +8,16 @@ namespace BlazorApp1.Services.ApiService;
 
 public class ApiClient(HttpClient _http, IAppAuthentication _auth) : IApiClient
 {
-    private async Task<HttpRequestMessage> BuildRequestAsync(ApiFunctions apiFunction, object? payload = null)
+    private async Task<HttpRequestMessage> BuildRequestAsync(ApiFunctions apiFunction, object? payload)
     {
-        var result  = await _auth.GetAuthAsync();
         var request = new HttpRequestMessage(HttpMethod.Post, ApiRouting.Routes[apiFunction]);
 
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", result.Token);
-        request.Headers.Add("X-Uid", result.Uid);
+        if (!ApiRouting.Anonymous.Contains(apiFunction))
+        {
+            var auth = await _auth.GetAuthAsync();
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", auth.Token);
+            request.Headers.Add("X-Uid", auth.Uid);
+        }
 
         if (payload is not null)
             request.Content = JsonContent.Create(payload);
@@ -22,11 +25,11 @@ public class ApiClient(HttpClient _http, IAppAuthentication _auth) : IApiClient
         return request;
     }
 
-    private async Task<HttpResponseMessage> SendOnceAsync(Func<Task<HttpRequestMessage>> buildRequest)
+    private async Task<HttpResponseMessage> SendOnceAsync(ApiFunctions apiFunction, object? payload)
     {
         try
         {
-            return await _http.SendAsync(await buildRequest());
+            return await _http.SendAsync(await BuildRequestAsync(apiFunction, payload));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -36,43 +39,32 @@ public class ApiClient(HttpClient _http, IAppAuthentication _auth) : IApiClient
         }
     }
 
-    private async Task<HttpResponseMessage> SendWithRetryAsync(Func<Task<HttpRequestMessage>> buildRequest)
+    private async Task<HttpResponseMessage> SendAsync(ApiFunctions apiFunction, object? payload)
     {
-        var response = await SendOnceAsync(buildRequest);
+        var response = await SendOnceAsync(apiFunction, payload);
 
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-            response = await SendOnceAsync(buildRequest);
+        // A 401 means the ID token lapsed between build and send; GetAuthAsync will
+        // force-refresh on the retry because the cached expiry has now passed.
+        if (response.StatusCode == HttpStatusCode.Unauthorized && !ApiRouting.Anonymous.Contains(apiFunction))
+            response = await SendOnceAsync(apiFunction, payload);
 
         return response;
     }
 
     public async Task<T> GetAsync<T>(ApiFunctions apiFunction, object? payload = null)
     {
-        var response = await SendWithRetryAsync(() => BuildRequestAsync(apiFunction, payload));
+        var response = await SendAsync(apiFunction, payload);
         response.EnsureSuccessStatusCode();
 
         return (await response.Content.ReadFromJsonAsync<T>())!;
     }
 
-    public async Task<T> SubmitAsync<T>(ApiFunctions apiFunction, object? payload = null)
-    {
-        var response = await SendWithRetryAsync(() => BuildRequestAsync(apiFunction, payload));
-        response.EnsureSuccessStatusCode();
-
-        return (await response.Content.ReadFromJsonAsync<T>())!;
-    }
+    public Task<T> SubmitAsync<T>(ApiFunctions apiFunction, object? payload = null)
+        => GetAsync<T>(apiFunction, payload);
 
     public async Task SubmitAsync(ApiFunctions apiFunction, object? payload = null)
     {
-        var response = await SendWithRetryAsync(() => BuildRequestAsync(apiFunction, payload));
+        var response = await SendAsync(apiFunction, payload);
         response.EnsureSuccessStatusCode();
-    }
-
-    public async Task<byte[]> GetBytesAsync(ApiFunctions apiFunction, object? payload = null)
-    {
-        var response = await SendWithRetryAsync(() => BuildRequestAsync(apiFunction, payload));
-        response.EnsureSuccessStatusCode();
-
-        return await response.Content.ReadAsByteArrayAsync();
     }
 }

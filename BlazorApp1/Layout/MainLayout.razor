@@ -1,31 +1,28 @@
 @inherits LayoutComponentBase
-@inject IAdSenseCfg AdCfg
-@inject AuthSessionState AuthState
 @inject NavigationManager Nav
+@inject IAdSenseCfg AdCfg
 
 <NavMenu />
 
-<AdUnit SlotId="@AdCfg.TopBannerSlotId" CssClass="ad-top-banner" />
+@if (!IsReaderRoute)
+{
+    <AdUnit SlotId="@AdCfg.TopBannerSlotId" CssClass="ad-top-banner" />
+}
 
 <main>
     @Body
 </main>
 
-<Footer />
-
-@if (!IsAuthCallbackRoute)
+@if (!IsReaderRoute)
 {
-    <SignInModal />
-    <ProfileSetupModal />
+    <Footer />
 }
 
-@code {
-    private bool IsAuthCallbackRoute
-        => Nav.ToBaseRelativePath(Nav.Uri).StartsWith("authentication", StringComparison.OrdinalIgnoreCase);
+<SignInModal />
+<ProfileSetupModal />
 
-    protected override void OnInitialized()
-    {
-        if (!AuthState.IsBusy && !AuthState.IsAuthenticated && !IsAuthCallbackRoute)
-            AuthState.OpenSignInModal();
-    }
+@code {
+    // The reader fills the viewport; a footer under it would push the canvas around.
+    private bool IsReaderRoute
+        => Nav.ToBaseRelativePath(Nav.Uri).StartsWith("read/", StringComparison.OrdinalIgnoreCase);
 }
