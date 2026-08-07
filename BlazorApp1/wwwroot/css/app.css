@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Learn It-All — Academic Excellence
+   Learn It All — Academic Excellence
    Elevation is carried by tonal layers and 1px outlines; shadows appear only
    on hover, per the Stitch design system.
    ========================================================================== */
@@ -36,11 +36,19 @@ img { max-width: 100%; display: block; }
 
 /* ---- Layout -------------------------------------------------------------- */
 
+/* Installed on iOS the window runs edge to edge (viewport-fit=cover), so the
+   rounded corners and the notch would overlap text. The insets go on .container
+   rather than on body so surfaces (header, footer) still reach the screen edge
+   while their contents stay clear of it. Every inset is 0 in a browser tab.
+   Breakpoints below set --page-margin; the padding is computed only here. */
 .container {
+    --page-margin: var(--margin-mobile);
     width: 100%;
     max-width: var(--container-max);
     margin-inline: auto;
-    padding-inline: var(--margin-mobile);
+    padding-inline:
+        calc(var(--page-margin) + env(safe-area-inset-left))
+        calc(var(--page-margin) + env(safe-area-inset-right));
 }
 
 main { flex: 1 0 auto; padding-block: var(--space-4) var(--space-6); }
@@ -133,6 +141,8 @@ main { flex: 1 0 auto; padding-block: var(--space-4) var(--space-6); }
     z-index: 30;
     background: var(--surface-container-lowest);
     border-bottom: 1px solid var(--outline-variant);
+    /* Clears the status bar / notch when installed; 0 in a normal browser tab. */
+    padding-top: env(safe-area-inset-top);
 }
 
 .site-header .container {
@@ -314,10 +324,20 @@ main { flex: 1 0 auto; padding-block: var(--space-4) var(--space-6); }
     background: var(--surface-container);
     overflow: hidden;
 }
-.book-cover img { width: 100%; height: 100%; object-fit: cover; border-radius: 2px; }
-.book-cover .cover-placeholder {
+/* Both layers are absolute so a failed image only has to hide itself (see
+   BookCover.razor) to reveal the placeholder underneath - no layout shift. */
+.book-cover img {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
+    object-fit: cover;
+    border-radius: 2px;
+}
+.book-cover img[hidden] { display: none; }
+.book-cover .cover-placeholder {
+    position: absolute;
+    inset: 0;
     display: grid;
     place-items: center;
     color: var(--outline);
@@ -536,13 +556,15 @@ main { flex: 1 0 auto; padding-block: var(--space-4) var(--space-6); }
 
 /* ---- Reader -------------------------------------------------------------- */
 
-.reader-page { display: flex; flex-direction: column; height: calc(100vh - var(--header-height)); }
+/* The sticky header grows by the top inset when installed, so subtract it here
+   too or the pager is pushed off the bottom of the window. */
+.reader-page { display: flex; flex-direction: column; height: calc(100vh - var(--header-height) - env(safe-area-inset-top)); }
 
 .reader-toolbar {
     display: flex;
     align-items: center;
     gap: var(--space-1);
-    padding: 0.5rem var(--margin-mobile);
+    padding: 0.5rem calc(var(--margin-mobile) + env(safe-area-inset-right)) 0.5rem calc(var(--margin-mobile) + env(safe-area-inset-left));
     background: var(--surface-container-lowest);
     border-bottom: 1px solid var(--outline-variant);
     flex-shrink: 0;
@@ -582,7 +604,8 @@ main { flex: 1 0 auto; padding-block: var(--space-4) var(--space-6); }
     align-items: center;
     justify-content: center;
     gap: var(--space-2);
-    padding: 0.5rem;
+    /* Bottom inset keeps the page buttons above the iOS home indicator. */
+    padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom));
     background: var(--surface-container-lowest);
     border-top: 1px solid var(--outline-variant);
     flex-shrink: 0;
@@ -608,7 +631,8 @@ main { flex: 1 0 auto; padding-block: var(--space-4) var(--space-6); }
     flex-shrink: 0;
     background: var(--surface-container);
     border-top: 1px solid var(--outline-variant);
-    padding-block: var(--space-3);
+    /* Bottom inset clears the iOS home indicator when installed. */
+    padding-block: var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom));
 }
 .site-footer .container { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
 .footer-links { display: flex; gap: var(--space-2); flex-wrap: wrap; }
@@ -751,11 +775,11 @@ body, .site-header, .modal, .input {
 /* ---- Responsive ---------------------------------------------------------- */
 
 @media (min-width: 768px) {
-    .container { padding-inline: var(--gutter); }
+    .container { --page-margin: var(--gutter); }
 }
 
 @media (min-width: 1024px) {
-    .container { padding-inline: var(--margin-desktop); }
+    .container { --page-margin: var(--margin-desktop); }
 }
 
 @media (max-width: 900px) {

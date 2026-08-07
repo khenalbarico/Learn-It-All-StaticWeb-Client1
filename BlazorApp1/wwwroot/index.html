@@ -3,12 +3,17 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Learn It-All</title>
+    <!-- viewport-fit=cover lets the safe-area insets below resolve to real values on
+         notched iPhones; without it iOS letterboxes the standalone window instead. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Learn It All</title>
     <base href="/" />
     <link rel="preload" id="webassembly" />
-    <meta name="theme-color" content="#00346f" />
-    <meta name="description" content="Browse, buy, and read your books from Learn It-All." />
+    <!-- Matched to --surface in each theme so the browser/OS chrome doesn't sit at a
+         different colour from the page it frames. -->
+    <meta name="theme-color" content="#f9f9fc" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#121316" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="Browse, buy, and read your books from Learn It All." />
     <script>
         (function () {
             var stored = localStorage.getItem('theme');
@@ -28,8 +33,15 @@
     <link rel="stylesheet" href="css/app.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="manifest.webmanifest" rel="manifest" />
+    <!-- iOS Safari ignores the manifest's icons for Add to Home Screen and reads only
+         apple-touch-icon, so the PWA install path depends on these being present. -->
     <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
     <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+    <!-- iOS also ignores manifest "display"/"name"; these are its equivalents. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Learn It All" />
     <!-- PLACEHOLDER client ID — replace ca-pub-0000000000000000 after AdSense approval (keep in sync with AdSenseWebCfg.cs) -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-0000000000000000"
             crossorigin="anonymous"></script>

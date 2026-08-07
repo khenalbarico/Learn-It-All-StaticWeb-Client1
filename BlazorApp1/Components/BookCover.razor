@@ -1,0 +1,25 @@
+@* Cover image layered over a placeholder that shows through whenever the image
+   is absent OR fails to load - a cover missing from the public R2 bucket, or an
+   offline device. Without the failure case the browser paints its own broken-image
+   glyph (the grey question mark on iOS Safari), which reads as the app being broken.
+
+   onerror is an inline attribute, not @@onerror: the DOM error event doesn't bubble,
+   so Blazor's delegated root listener never sees it. Hiding rather than removing the
+   <img> keeps Blazor's diffing view of the DOM intact. *@
+
+<div class="book-cover">
+    <div class="cover-placeholder"><Icon Name="menu_book" Size="48" /></div>
+
+    @if (!string.IsNullOrWhiteSpace(Url))
+    {
+        <img src="@Url"
+             alt="Cover of @(Title ?? "this book")"
+             loading="lazy"
+             onerror="this.hidden = true" />
+    }
+</div>
+
+@code {
+    [Parameter] public string? Url { get; set; }
+    [Parameter] public string? Title { get; set; }
+}
