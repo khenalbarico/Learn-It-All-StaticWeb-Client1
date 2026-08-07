@@ -1,10 +1,13 @@
 <div class="empty-state">
-    <div class="icon-badge">
-        <Icon Name="book" Size="28" />
-    </div>
-    <p class="form-hint">@Message</p>
+    <Icon Name="@IconName" Size="56" />
+    <h3>@Title</h3>
+    <p>@Message</p>
+    @ChildContent
 </div>
 
 @code {
-    [Parameter] public string Message { get; set; } = "Nothing here yet.";
+    [Parameter] public string IconName { get; set; } = "menu_book";
+    [Parameter] public string Title { get; set; } = "Nothing here yet";
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
 }

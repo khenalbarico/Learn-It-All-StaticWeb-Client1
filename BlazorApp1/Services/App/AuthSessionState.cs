@@ -4,38 +4,46 @@ using BlazorApp1.Services.Caching;
 
 namespace BlazorApp1.Services.App;
 
-public class AuthSessionState(IAppAuthentication _auth, IAppService _appService, LibraryCacheService _libraryCache)
+public class AuthSessionState(IAppAuthentication _auth, IAppService _appService, TokenVerificationCache _verification, LibraryCacheService _libraryCache)
 {
-    public bool IsAuthenticated { get; private set; }
-    public bool IsInitializing { get; private set; } = true;
-    public bool IsResolvingSession { get; private set; }
-    public UserInfo? CurrentUser { get; private set; }
-    public string? ProfileLoadError { get; private set; }
-    public bool SignInModalOpen { get; private set; }
+    public bool      IsAuthenticated    { get; private set; }
+    public bool      IsInitializing     { get; private set; } = true;
+    public bool      IsResolvingSession { get; private set; }
+    public UserInfo? CurrentUser        { get; private set; }
+    public string?   PhotoUrl           { get; private set; }
+    public string?   ProfileLoadError   { get; private set; }
+    public bool      SignInModalOpen    { get; private set; }
 
-    // True while we're mid-transition (e.g. just came back from the identity
-    // provider redirect) and haven't yet confirmed both the auth state AND
-    // the profile. Consumers must treat this exactly like IsInitializing -
-    // otherwise there's a window where a stale "guest" state can render with
-    // clickable sign-in buttons a split second before the real state lands.
+    // Where to return once sign-in completes — set when a guest is interrupted mid-action
+    // (e.g. pressing Buy Now) so the flow resumes rather than dumping them on the home page.
+    public string? PendingBookUid { get; private set; }
+
     public bool IsBusy => IsInitializing || IsResolvingSession;
 
     public bool NeedsProfileSetup
-        => !IsBusy
-        && IsAuthenticated
-        && CurrentUser is null
-        && ProfileLoadError is null;
+        => !IsBusy && IsAuthenticated && CurrentUser is null && ProfileLoadError is null;
 
     public event Action? OnChange;
 
-    public async Task FastInitializeAsync()
+    public async Task InitializeAsync()
     {
         _auth.StateChanged += HandleAuthStateChanged;
 
-        IsAuthenticated = await _auth.IsAuthenticatedAsync();
+        try
+        {
+            await _auth.InitializeAsync();
+            IsAuthenticated = await _auth.IsAuthenticatedAsync();
 
-        if (IsAuthenticated)
-            await LoadProfileAsync();
+            if (IsAuthenticated)
+                await LoadSessionAsync();
+        }
+        catch (Exception ex)
+        {
+            // A misconfigured or unreachable identity provider must not stop the app from
+            // booting — the storefront works signed out, so degrade to guest instead.
+            Console.WriteLine($"[Learn It-All] Auth initialization failed: {ex.Message}");
+            IsAuthenticated = false;
+        }
 
         IsInitializing = false;
         OnChange?.Invoke();
@@ -52,30 +60,25 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
         if (IsAuthenticated && !wasAuthenticated)
         {
             SignInModalOpen = false;
-            await LoadProfileAsync();
+            await LoadSessionAsync();
+        }
+        else if (!IsAuthenticated && wasAuthenticated)
+        {
+            ResetLocalSession();
         }
 
         IsResolvingSession = false;
         OnChange?.Invoke();
     }
 
-    public void OpenSignInModal()
-    {
-        SignInModalOpen = true;
-        OnChange?.Invoke();
-    }
-
-    public void CloseSignInModal()
-    {
-        SignInModalOpen = false;
-        OnChange?.Invoke();
-    }
-
-    public async Task LoadProfileAsync()
+    // One verification per token, then the profile. Everything downstream reuses both.
+    private async Task LoadSessionAsync()
     {
         try
         {
             ProfileLoadError = null;
+            await _verification.EnsureVerifiedAsync();
+            PhotoUrl    = await _auth.GetPhotoUrlAsync();
             CurrentUser = await _appService.TryGetUserInfo();
         }
         catch (ApiUnavailableException ex)
@@ -92,62 +95,74 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
         }
     }
 
-    public Task RefreshProfileAsync() => LoadProfileAsync();
+    public Task RefreshProfileAsync() => LoadSessionAsync();
 
-    public void UpdateLocalReadingProgress(string bookUid, string docUid, int page, int totalPages)
+    public void OpenSignInModal(string? pendingBookUid = null)
+    {
+        PendingBookUid  = pendingBookUid;
+        SignInModalOpen = true;
+        OnChange?.Invoke();
+    }
+
+    public void CloseSignInModal()
+    {
+        SignInModalOpen = false;
+        OnChange?.Invoke();
+    }
+
+    // Parks a checkout that can't run yet — an authenticated user who still owes us a
+    // profile. The store page picks it back up once setup completes.
+    public void RememberPendingBook(string bookUid)
+    {
+        if (PendingBookUid == bookUid) return;
+
+        PendingBookUid = bookUid;
+        OnChange?.Invoke();
+    }
+
+    public string? TakePendingBookUid()
+    {
+        var uid = PendingBookUid;
+        PendingBookUid = null;
+        return uid;
+    }
+
+    public void UpdateLocalReadingProgress(string bookUid, int page, int totalPages)
     {
         var entry = CurrentUser?.Library.FirstOrDefault(l => l.Uid == bookUid);
         if (entry is null) return;
 
-        var now = DateTime.UtcNow;
-
-        var docProgress = entry.DocumentsProgress.FirstOrDefault(d => d.DocUid == docUid);
-        if (docProgress is null)
-        {
-            docProgress = new DocumentProgress { DocUid = docUid };
-            entry.DocumentsProgress.Add(docProgress);
-        }
-
-        docProgress.Page = page;
-        docProgress.TotalPages = totalPages;
-        docProgress.LastReadAt = now;
-
-        entry.LastReadDocUid = docUid;
-        entry.LastReadPage = page;
+        entry.LastReadPage       = page;
         entry.LastReadTotalPages = totalPages;
-        entry.LastReadAt = now;
+        entry.LastReadAt         = DateTime.UtcNow;
         OnChange?.Invoke();
     }
 
-    public void AddToCartLocal(string bookUid, bool isPremium = false)
+    // A fresh purchase must show up in My Library right away, so its cache is dropped.
+    public async Task OnPurchaseCompletedAsync()
     {
-        if (CurrentUser is null) return;
-        if (CurrentUser.Cart.Any(c => c.BookUid == bookUid)) return;
-
-        CurrentUser.Cart.Add(new CartItem { BookUid = bookUid, AddedAt = DateTime.UtcNow, IsPremium = isPremium });
-        OnChange?.Invoke();
+        _libraryCache.InvalidateMyLibrary();
+        await RefreshProfileAsync();
     }
-
-    public void RemoveFromCartLocal(string bookUid)
-    {
-        if (CurrentUser is null) return;
-        if (CurrentUser.Cart.RemoveAll(c => c.BookUid == bookUid) > 0)
-            OnChange?.Invoke();
-    }
-
-    public void BeginSignIn(string returnUrl = "auth")
-        => _auth.SignIn(returnUrl);
 
     public async Task SignOutAsync()
     {
-        await _appService.LogActivity("Logged out");
+        try   { await _appService.LogActivity("Logged out"); }
+        catch { /* signing out must not fail on a logging call */ }
 
-        IsAuthenticated = false;
-        CurrentUser = null;
-        SignInModalOpen = false;
-        _libraryCache.ClearAll();
+        ResetLocalSession();
         OnChange?.Invoke();
 
-        _auth.SignOut("/");
+        await _auth.SignOutAsync();
+    }
+
+    private void ResetLocalSession()
+    {
+        IsAuthenticated = false;
+        CurrentUser     = null;
+        PhotoUrl        = null;
+        SignInModalOpen = false;
+        _verification.Clear();
+        _libraryCache.ClearAll();
     }
 }

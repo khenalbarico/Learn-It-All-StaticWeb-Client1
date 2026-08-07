@@ -2,19 +2,15 @@ namespace BlazorApp1.Models;
 
 public enum ApiFunctions
 {
+    VerifyAuth,
     TryGetUser,
     CreateUser,
     GetAllBooks,
-    GetBooksByCategory,
     GetMyLibraryBooks,
-    StreamBookDocument,
-    RecordPurchase,
+    GetBookReadUrl,
     CreatePaymentIntent,
     GetPaymentStatus,
     LogActivity,
-    UpdateUserKeywords,
     SaveReadingProgress,
-    SetFavorite,
-    AddToCart,
-    RemoveFromCart
+    SetFavorite
 }

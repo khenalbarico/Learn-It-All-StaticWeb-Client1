@@ -1,105 +1,160 @@
+/* Design tokens from stitch_qrph_digital_library "Academic Excellence".
+   Light is the reference palette; dark is a tonal inversion of the same ramps. */
+
+:root,
+:root[data-theme='light'] {
+    --surface: #f9f9fc;
+    --surface-dim: #dadadc;
+    --surface-bright: #f9f9fc;
+    --surface-container-lowest: #ffffff;
+    --surface-container-low: #f3f3f6;
+    --surface-container: #eeeef0;
+    --surface-container-high: #e8e8ea;
+    --surface-container-highest: #e2e2e5;
+    --surface-variant: #e2e2e5;
+
+    --on-surface: #1a1c1e;
+    --on-surface-variant: #424751;
+    --inverse-surface: #2f3133;
+    --inverse-on-surface: #f0f0f3;
+
+    --outline: #737783;
+    --outline-variant: #c2c6d3;
+
+    --primary: #00346f;
+    --on-primary: #ffffff;
+    --primary-container: #004a99;
+    --on-primary-container: #9bbdff;
+    --primary-fixed: #d7e2ff;
+    --inverse-primary: #abc7ff;
+    --surface-tint: #255dad;
+
+    --secondary: #964900;
+    --on-secondary: #ffffff;
+    --secondary-container: #ff8928;
+    --on-secondary-container: #642f00;
+
+    --tertiary: #003857;
+    --on-tertiary: #ffffff;
+    --tertiary-container: #005079;
+    --on-tertiary-container: #77c3ff;
+    --tertiary-fixed: #cbe6ff;
+
+    --error: #ba1a1a;
+    --on-error: #ffffff;
+    --error-container: #ffdad6;
+    --on-error-container: #93000a;
+
+    --success: #1b6b3a;
+    --success-container: #cdf0d8;
+    --on-success-container: #04431f;
+
+    --background: #f9f9fc;
+    --on-background: #1a1c1e;
+
+    --overlay: rgb(26 28 30 / 45%);
+    --shadow-hover: 0 4px 8px rgb(26 28 30 / 8%);
+    --shadow-modal: 0 16px 40px rgb(26 28 30 / 18%);
+}
+
+:root[data-theme='dark'] {
+    --surface: #121316;
+    --surface-dim: #101114;
+    --surface-bright: #383a3e;
+    --surface-container-lowest: #0c0e10;
+    --surface-container-low: #1a1c1e;
+    --surface-container: #1e2023;
+    --surface-container-high: #292b2e;
+    --surface-container-highest: #343639;
+    --surface-variant: #434750;
+
+    --on-surface: #e3e2e6;
+    --on-surface-variant: #c2c6d3;
+    --inverse-surface: #e3e2e6;
+    --inverse-on-surface: #2f3133;
+
+    --outline: #8c909c;
+    --outline-variant: #434750;
+
+    --primary: #abc7ff;
+    --on-primary: #002e69;
+    --primary-container: #004a99;
+    --on-primary-container: #d7e2ff;
+    --primary-fixed: #00346f;
+    --inverse-primary: #00346f;
+    --surface-tint: #abc7ff;
+
+    --secondary: #ffb786;
+    --on-secondary: #522300;
+    --secondary-container: #ff8928;
+    --on-secondary-container: #311300;
+
+    --tertiary: #90cdff;
+    --on-tertiary: #00344f;
+    --tertiary-container: #005079;
+    --on-tertiary-container: #cbe6ff;
+    --tertiary-fixed: #004b72;
+
+    --error: #ffb4ab;
+    --on-error: #690005;
+    --error-container: #93000a;
+    --on-error-container: #ffdad6;
+
+    --success: #8fd6a4;
+    --success-container: #04431f;
+    --on-success-container: #cdf0d8;
+
+    --background: #121316;
+    --on-background: #e3e2e6;
+
+    --overlay: rgb(0 0 0 / 62%);
+    --shadow-hover: 0 4px 8px rgb(0 0 0 / 35%);
+    --shadow-modal: 0 16px 40px rgb(0 0 0 / 55%);
+}
+
 :root {
-    --color-primary: #EF7B22;
-    --color-primary-strong: #D96A15;
-    --color-primary-contrast: #FFFFFF;
-    --color-secondary: #1C4F86;
-    --color-secondary-hover: #163F6C;
-    --color-accent: #5AA9E6;
-    --color-bg: #FBF6EF;
-    --color-surface: #FFFFFF;
-    --color-surface-alt: #F3E9DC;
-    --color-text: #2B2320;
-    --color-text-muted: #6B5F55;
-    --color-border: #E7DCCC;
-    --color-success: #2F9E44;
-    --color-danger: #D64545;
-    --color-warning: #E0A106;
-    --color-focus-ring: #5AA9E6;
+    /* Typography — Manrope for headlines, Work Sans for body, Hanken Grotesk for labels */
+    --font-headline: 'Manrope', system-ui, sans-serif;
+    --font-body: 'Work Sans', system-ui, sans-serif;
+    --font-label: 'Hanken Grotesk', system-ui, sans-serif;
 
-    --radius-sm: 10px;
-    --radius-md: 16px;
-    --radius-lg: 24px;
-    --radius-pill: 980px;
-    --shadow-sm: 0 1px 2px rgba(43, 35, 32, 0.06), 0 1px 1px rgba(43, 35, 32, 0.04);
-    --shadow-md: 0 8px 24px rgba(43, 35, 32, 0.10), 0 2px 6px rgba(43, 35, 32, 0.06);
-    --shadow-lg: 0 20px 48px rgba(43, 35, 32, 0.16), 0 6px 16px rgba(43, 35, 32, 0.08);
-    --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --font-heading: var(--font-body);
+    --text-display-lg: 700 3rem/3.5rem var(--font-headline);
+    --text-headline-lg: 600 2rem/2.5rem var(--font-headline);
+    --text-headline-md: 600 1.5rem/2rem var(--font-headline);
+    --text-body-lg: 400 1.125rem/1.75rem var(--font-body);
+    --text-body-md: 400 1rem/1.5rem var(--font-body);
+    --text-label-md: 600 0.875rem/1.25rem var(--font-label);
+    --text-caption: 400 0.75rem/1rem var(--font-body);
 
-    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-    --duration-fast: 150ms;
-    --duration-base: 280ms;
-    --duration-slow: 480ms;
+    /* 8px base unit */
+    --space-1: 0.5rem;
+    --space-2: 1rem;
+    --space-3: 1.5rem;
+    --space-4: 2rem;
+    --space-6: 3rem;
 
-    --glass-bg: rgba(251, 246, 239, 0.72);
+    --radius-sm: 0.125rem;
+    --radius: 0.25rem;
+    --radius-lg: 0.5rem;
+    --radius-xl: 0.75rem;
+    --radius-full: 9999px;
 
-    --gradient-primary: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-strong) 100%);
-    --gradient-brand: linear-gradient(120deg, var(--color-primary) 0%, var(--color-primary-strong) 45%, var(--color-secondary) 100%);
-    --gradient-secondary: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-accent) 100%);
-    --gradient-surface: linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 6%, var(--color-surface)) 0%, var(--color-surface) 65%);
-    --gradient-nav: linear-gradient(120deg, color-mix(in srgb, var(--color-primary) 10%, transparent) 0%, transparent 55%);
-    --gradient-mesh:
-        radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--color-primary) 30%, transparent) 0%, transparent 42%),
-        radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--color-secondary) 26%, transparent) 0%, transparent 48%),
-        radial-gradient(circle at 50% 100%, color-mix(in srgb, var(--color-accent) 20%, transparent) 0%, transparent 55%);
-    --gradient-text: linear-gradient(120deg, var(--color-primary-strong) 0%, var(--color-secondary) 100%);
-}
+    --container-max: 1280px;
+    --gutter: 1.5rem;
+    --margin-desktop: 3rem;
+    --margin-mobile: 1rem;
 
-:root[data-theme="dark"] {
-    --color-primary: #F5923D;
-    --color-primary-strong: #FFA855;
-    --color-primary-contrast: #241A12;
-    --color-secondary: #5AA9E6;
-    --color-secondary-hover: #7FBEEF;
-    --color-accent: #1C4F86;
-    --color-bg: #211B16;
-    --color-surface: #2C241D;
-    --color-surface-alt: #362C22;
-    --color-text: #F3E9DC;
-    --color-text-muted: #B9AA98;
-    --color-border: #4A3D30;
-    --color-success: #4CC26B;
-    --color-danger: #F17070;
-    --color-warning: #F0C24B;
-    --color-focus-ring: #5AA9E6;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 1px rgba(0, 0, 0, 0.2);
-    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.32), 0 2px 6px rgba(0, 0, 0, 0.2);
-    --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.45), 0 6px 16px rgba(0, 0, 0, 0.28);
-    --glass-bg: rgba(33, 27, 22, 0.68);
-}
+    --header-height: 4.5rem;
 
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]):not([data-theme="dark"]) {
-        --color-primary: #F5923D;
-        --color-primary-strong: #FFA855;
-        --color-primary-contrast: #241A12;
-        --color-secondary: #5AA9E6;
-        --color-secondary-hover: #7FBEEF;
-        --color-accent: #1C4F86;
-        --color-bg: #211B16;
-        --color-surface: #2C241D;
-        --color-surface-alt: #362C22;
-        --color-text: #F3E9DC;
-        --color-text-muted: #B9AA98;
-        --color-border: #4A3D30;
-        --color-success: #4CC26B;
-        --color-danger: #F17070;
-        --color-warning: #F0C24B;
-        --color-focus-ring: #5AA9E6;
-        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 1px rgba(0, 0, 0, 0.2);
-        --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.32), 0 2px 6px rgba(0, 0, 0, 0.2);
-        --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.45), 0 6px 16px rgba(0, 0, 0, 0.28);
-        --glass-bg: rgba(33, 27, 22, 0.68);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
-    }
+    /* Motion. The design brief asks for institutional calm, so durations stay short enough
+       to read as responsiveness rather than decoration — nothing here is a set piece.
+       ease-out decelerates hard, which is what makes a transition feel settled instead of
+       mechanical; ease-spring overshoots slightly and is reserved for the one genuinely
+       celebratory moment (a completed purchase). */
+    --dur-fast: 120ms;
+    --dur-base: 180ms;
+    --dur-slow: 300ms;
+    --ease-out: cubic-bezier(.2, .8, .2, 1);
+    --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+    --stagger-step: 40ms;
 }

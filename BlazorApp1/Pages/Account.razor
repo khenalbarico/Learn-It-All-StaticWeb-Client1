@@ -1,179 +1,83 @@
 @page "/account"
 @implements IDisposable
-@using System.ComponentModel.DataAnnotations
 @inject AuthSessionState AuthState
-@inject IAppService AppService
 
-<PageTitle>Account - Learn It All</PageTitle>
+<PageTitle>Account — Learn It-All</PageTitle>
 
-<div class="page-container">
-    <h1>Account</h1>
+<div class="container">
+    <div class="page-header">
+        <h1>Account</h1>
+    </div>
 
-    <AuthGate GuestMessage="Log in to manage your account.">
+    @if (AuthState.IsBusy)
+    {
+        <div class="card"><span class="spinner"></span></div>
+    }
+    else if (!AuthState.IsAuthenticated)
+    {
+        <EmptyState IconName="account_circle"
+                    Title="You're not signed in"
+                    Message="Sign in to view your account details and library.">
+            <button class="btn btn-primary" style="margin-top:1rem" @onclick="() => AuthState.OpenSignInModal()">Sign in</button>
+        </EmptyState>
+    }
+    else
+    {
+        <ErrorBanner Message="@AuthState.ProfileLoadError" />
+
         <div class="card">
-            <div class="section-header">
-                <h2>Profile</h2>
-                @if (IsProfileDirty)
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+                @if (!string.IsNullOrWhiteSpace(AuthState.PhotoUrl))
                 {
-                    <span class="unsaved-badge"><span class="dot"></span> Unsaved changes</span>
+                    <img class="avatar" style="width:4rem;height:4rem" src="@AuthState.PhotoUrl" alt="" referrerpolicy="no-referrer" />
                 }
+                else
+                {
+                    <span class="avatar avatar-fallback" style="width:4rem;height:4rem;font-size:1.5rem">@Initial</span>
+                }
+                <div>
+                    <h3>@(AuthState.CurrentUser?.DisplayName ?? "Reader")</h3>
+                    <p style="color:var(--on-surface-variant)">@AuthState.CurrentUser?.Email</p>
+                </div>
             </div>
 
-            <div class="form-field">
-                <label>Email</label>
-                <input value="@AuthState.CurrentUser?.Email" disabled />
-            </div>
+            <dl style="margin:0">
+                <div class="detail-row"><dt>Phone</dt><dd>@Display(AuthState.CurrentUser?.PhoneNumber)</dd></div>
+                <div class="detail-row"><dt>Plan</dt><dd>@AuthState.CurrentUser?.Subscription</dd></div>
+                <div class="detail-row"><dt>Books owned</dt><dd>@(AuthState.CurrentUser?.Library.Count ?? 0)</dd></div>
+            </dl>
 
-            <EditForm Model="_profileModel" OnValidSubmit="SaveProfile">
-                <DataAnnotationsValidator />
-
-                <div class="form-field">
-                    <label for="acc-first">First name</label>
-                    <InputText id="acc-first" autocomplete="given-name"
-                               @bind-Value="_profileModel.FirstName" />
-                    <ValidationMessage For="() => _profileModel.FirstName" />
-                </div>
-
-                <div class="form-field">
-                    <label for="acc-last">Last name</label>
-                    <InputText id="acc-last" autocomplete="family-name"
-                               @bind-Value="_profileModel.LastName" />
-                    <ValidationMessage For="() => _profileModel.LastName" />
-                </div>
-
-                <div class="form-field">
-                    <label for="acc-phone">Phone number</label>
-                    <InputText id="acc-phone" autocomplete="tel"
-                               @bind-Value="_profileModel.PhoneNumber" />
-                    <ValidationMessage For="() => _profileModel.PhoneNumber" />
-                </div>
-
-                @if (!string.IsNullOrEmpty(_profileMessage))
-                {
-                    <p class="@(_profileSuccess ? "form-hint" : "form-error")">@_profileMessage</p>
-                }
-
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary" disabled="@(_profileBusy || !IsProfileDirty)">
-                        @(_profileBusy ? "Saving..." : "Save Changes")
-                    </button>
-                    @if (IsProfileDirty)
-                    {
-                        <button type="button" class="btn btn-ghost" @onclick="ResetProfile" disabled="@_profileBusy">
-                            Discard
-                        </button>
-                    }
-                </div>
-            </EditForm>
+            <button class="btn btn-outline" style="margin-top:1.5rem" @onclick="SignOutAsync" disabled="@_signingOut">
+                @if (_signingOut) { <span class="spinner"></span> } else { <text>Sign out</text> }
+            </button>
         </div>
-
-    </AuthGate>
+    }
 </div>
 
 @code {
-    private readonly ProfileModel _profileModel = new();
+    private bool _signingOut;
 
-    private string _originalFirstName = "";
-    private string _originalLastName = "";
-    private string _originalPhoneNumber = "";
-    private bool _initialSyncDone;
-
-    private bool _profileBusy;
-    private string? _profileMessage;
-    private bool _profileSuccess;
-
-    private bool IsProfileDirty =>
-        _profileModel.FirstName.Trim() != _originalFirstName ||
-        _profileModel.LastName.Trim() != _originalLastName ||
-        _profileModel.PhoneNumber.Trim() != _originalPhoneNumber;
-
-    protected override void OnInitialized()
+    private string Initial
     {
-        AuthState.OnChange += OnAuthChanged;
-        SyncModelFromUser();
-    }
-
-    private void OnAuthChanged()
-    {
-        SyncModelFromUser();
-        StateHasChanged();
-    }
-
-    private void SyncModelFromUser()
-    {
-        if (_initialSyncDone || AuthState.CurrentUser is null) return;
-
-        ApplySnapshot(
-            AuthState.CurrentUser.FirstName ?? "",
-            AuthState.CurrentUser.LastName ?? "",
-            AuthState.CurrentUser.PhoneNumber ?? "");
-        _initialSyncDone = true;
-    }
-
-    private void ApplySnapshot(string firstName, string lastName, string phoneNumber)
-    {
-        _profileModel.FirstName = firstName;
-        _profileModel.LastName = lastName;
-        _profileModel.PhoneNumber = phoneNumber;
-        _originalFirstName = firstName;
-        _originalLastName = lastName;
-        _originalPhoneNumber = phoneNumber;
-    }
-
-    private void ResetProfile()
-    {
-        _profileMessage = null;
-        ApplySnapshot(_originalFirstName, _originalLastName, _originalPhoneNumber);
-    }
-
-    private async Task SaveProfile()
-    {
-        _profileMessage = null;
-        _profileBusy = true;
-
-        var firstName = _profileModel.FirstName.Trim();
-        var lastName = _profileModel.LastName.Trim();
-        var phoneNumber = _profileModel.PhoneNumber.Trim();
-
-        try
+        get
         {
-            await AppService.CreateUser(firstName, lastName, phoneNumber);
-            ApplySnapshot(firstName, lastName, phoneNumber);
-            _profileMessage = "Profile updated.";
-            _profileSuccess = true;
-            _ = AuthState.RefreshProfileAsync();
-        }
-        catch (ApiUnavailableException ex)
-        {
-            _profileMessage = ex.Message;
-            _profileSuccess = false;
-        }
-        catch (Exception)
-        {
-            _profileMessage = "Could not save your changes. Please try again.";
-            _profileSuccess = false;
-        }
-        finally
-        {
-            _profileBusy = false;
+            var source = AuthState.CurrentUser?.DisplayName;
+            return string.IsNullOrWhiteSpace(source) ? "?" : source.Trim()[..1].ToUpperInvariant();
         }
     }
 
-    public void Dispose()
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+
+    protected override void OnInitialized() => AuthState.OnChange += OnStateChanged;
+
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task SignOutAsync()
     {
-        AuthState.OnChange -= OnAuthChanged;
+        _signingOut = true;
+        try   { await AuthState.SignOutAsync(); }
+        finally { _signingOut = false; }
     }
 
-    private class ProfileModel
-    {
-        [Required(ErrorMessage = "Please enter your first name.")]
-        public string FirstName { get; set; } = "";
-
-        [Required(ErrorMessage = "Please enter your last name.")]
-        public string LastName { get; set; } = "";
-
-        [Required(ErrorMessage = "Please enter your phone number.")]
-        [Phone(ErrorMessage = "Please enter a valid phone number.")]
-        public string PhoneNumber { get; set; } = "";
-    }
+    public void Dispose() => AuthState.OnChange -= OnStateChanged;
 }

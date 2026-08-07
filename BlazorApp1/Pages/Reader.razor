@@ -1,358 +1,216 @@
-@page "/read/{BookUid}/{DocUid}"
-@implements IDisposable
-@inject AuthSessionState AuthState
+@page "/read/{BookUid}"
+@implements IAsyncDisposable
 @inject IAppService AppService
+@inject AuthSessionState AuthState
 @inject LibraryCacheService LibraryCache
 @inject JsInteropService JsInterop
 @inject NavigationManager Nav
-@inject IAdSenseCfg AdCfg
 
-<PageTitle>@(_currentDoc?.Title ?? _book?.Title ?? "Reading") - Learn It All</PageTitle>
+<PageTitle>@(_book?.Title ?? "Reading") — Learn It-All</PageTitle>
 
 <div class="reader-page">
-    <AuthGate GuestMessage="Log in to read your books.">
-        <div class="reader-toolbar">
-            <button class="btn btn-ghost reader-back" @onclick="BackToLibrary" title="Back to My Library" aria-label="Back to My Library">
-                <Icon Name="close" Size="18" />
-            </button>
+    <div class="reader-toolbar">
+        <button class="btn btn-ghost" @onclick="BackToLibrary" title="Back to My Library" aria-label="Back to My Library">
+            <Icon Name="arrow_back" />
+        </button>
 
-            <div class="reader-titles">
-                <span class="reader-book-title">@(_book?.Title ?? "")</span>
-                <span class="reader-doc-title">@(_currentDoc?.Title ?? "")</span>
-            </div>
-
-            @if (_libraryEntry is not null)
-            {
-                <button class="btn btn-ghost reader-favorite @(_isFavorite ? "is-favorite" : "")"
-                        @onclick="ToggleFavorite" title="@(_isFavorite ? "Remove from favorites" : "Add to favorites")"
-                        aria-label="Toggle favorite">
-                    <Icon Name="@(_isFavorite ? "heart-filled" : "heart")" Size="18" />
-                </button>
-            }
-
-            @if (_book is not null && _book.Documents.Count > 1)
-            {
-                <button class="btn reader-select reader-doc-switch" @onclick="() => _docListOpen = true" disabled="@_loading" aria-label="Switch document">
-                    <span class="reader-doc-switch-title">@(string.IsNullOrWhiteSpace(_currentDoc?.Title) ? "Document" : _currentDoc.Title)</span>
-                    @if (_currentDoc?.IsPremium == true)
-                    {
-                        <span class="badge badge-premium reader-doc-switch-badge">★</span>
-                    }
-                    <Icon Name="chevron-down" Size="14" />
-                </button>
-            }
-
-            @if (_libraryBooks.Count > 1)
-            {
-                <select class="reader-select" value="@BookUid" @onchange="OnBookChanged" disabled="@_loading">
-                    @foreach (var b in _libraryBooks)
-                    {
-                        <option value="@b.Uid">@(b.Title ?? "Untitled")</option>
-                    }
-                </select>
-            }
-
+        <div class="reader-titles">
+            <span class="reader-book-title">@(_book?.Title ?? "")</span>
         </div>
 
-        <AdUnit SlotId="@AdCfg.ReaderSlotId" CssClass="ad-reader-strip" />
-
-        @if (_loading)
+        @if (_entry is not null)
         {
-            <div class="reader-status">
-                <div class="spinner"></div>
-                <p class="form-hint">Loading document...</p>
+            <button class="btn btn-ghost reader-favorite @(_isFavorite ? "is-favorite" : "")"
+                    @onclick="ToggleFavoriteAsync"
+                    title="@(_isFavorite ? "Remove from favourites" : "Add to favourites")"
+                    aria-label="Toggle favourite">
+                <Icon Name="bookmark" Filled="_isFavorite" />
+            </button>
+        }
+
+        @if (_libraryBooks.Count > 1)
+        {
+            <select class="reader-select" value="@BookUid" @onchange="OnBookChanged" disabled="@_loading" aria-label="Switch book">
+                @foreach (var b in _libraryBooks)
+                {
+                    <option value="@b.Uid">@(b.Title ?? "Untitled")</option>
+                }
+            </select>
+        }
+
+        <button class="btn btn-ghost" @onclick="() => ZoomAsync(-1)" disabled="@_loading" aria-label="Zoom out"><Icon Name="zoom_out" /></button>
+        <button class="btn btn-ghost" @onclick="() => ZoomAsync(1)" disabled="@_loading" aria-label="Zoom in"><Icon Name="zoom_in" /></button>
+    </div>
+
+    @if (!AuthState.IsBusy && !AuthState.IsAuthenticated)
+    {
+        <div class="container" style="padding-block:var(--space-4)">
+            <EmptyState IconName="lock" Title="Sign in to read" Message="This book is in your library once you're signed in.">
+                <button class="btn btn-primary" style="margin-top:1rem" @onclick="() => AuthState.OpenSignInModal()">Sign in</button>
+            </EmptyState>
+        </div>
+    }
+    else if (_error is not null)
+    {
+        <div class="container" style="padding-block:var(--space-4)">
+            <ErrorBanner Message="@_error" />
+            <button class="btn btn-outline" @onclick="BackToLibrary">Back to My Library</button>
+        </div>
+    }
+    else
+    {
+        <div class="reader-canvas" id="@ContainerId">
+            @if (_loading)
+            {
+                <div style="display:grid;place-items:center;width:100%">
+                    <span class="spinner" style="width:2.5rem;height:2.5rem;color:var(--primary)"></span>
+                </div>
+            }
+        </div>
+
+        @if (!_loading && _totalPages > 0)
+        {
+            <div class="reader-pager">
+                <button class="btn btn-ghost" @onclick="() => GoToPageAsync(_page - 1)" disabled="@(_page <= 1)" aria-label="Previous page">
+                    <Icon Name="chevron_left" Size="24" />
+                </button>
+                <span class="reader-page-label">Page @_page of @_totalPages</span>
+                <button class="btn btn-ghost" @onclick="() => GoToPageAsync(_page + 1)" disabled="@(_page >= _totalPages)" aria-label="Next page">
+                    <Icon Name="chevron_right" Size="24" />
+                </button>
             </div>
         }
-        else if (_error is not null)
-        {
-            <div class="reader-status">
-                <ErrorBanner Message="@_error" OnRetry="LoadDocumentAsync" />
-            </div>
-        }
-        <div class="reader-frame" id="@_containerId" style="@(_loading || _error is not null ? "display:none" : null)"></div>
-
-        @if (!_loading && _error is null && _totalPages > 0)
-        {
-            <div class="reader-controls">
-                <button class="btn btn-ghost reader-pagenav-btn" @onclick="PrevPage" disabled="@(_currentPage <= 1)" aria-label="Previous page">
-                    <Icon Name="chevron-left" Size="18" />
-                </button>
-
-                <form class="reader-controls-page" @onsubmit="CommitPageInput" @onsubmit:preventDefault="true">
-                    <input type="number" class="reader-pagejump-input" min="1" max="@_totalPages"
-                           value="@_currentPage" @onchange="OnPageInputChanged"
-                           aria-label="Current page, type to jump" title="Type a page number and press Enter" />
-                    <span class="reader-controls-total">/ @_totalPages</span>
-                </form>
-
-                <button class="btn btn-ghost reader-pagenav-btn" @onclick="NextPage" disabled="@(_currentPage >= _totalPages)" aria-label="Next page">
-                    <Icon Name="chevron-right" Size="18" />
-                </button>
-
-                <div class="reader-controls-divider"></div>
-
-                <button class="btn btn-ghost reader-pagenav-btn" @onclick="ZoomOut" disabled="@(_zoom <= MinZoom)" aria-label="Zoom out">
-                    <Icon Name="zoom-out" Size="18" />
-                </button>
-                <span class="reader-controls-total reader-zoom-value">@((_zoom * 100).ToString("0"))%</span>
-                <button class="btn btn-ghost reader-pagenav-btn" @onclick="ZoomIn" disabled="@(_zoom >= MaxZoom)" aria-label="Zoom in">
-                    <Icon Name="zoom-in" Size="18" />
-                </button>
-            </div>
-        }
-    </AuthGate>
+    }
 </div>
 
-<DocumentListModal @bind-IsOpen="_docListOpen"
-                    BookTitle="@(_book?.Title ?? "")"
-                    Documents="@(_book?.Documents ?? [])"
-                    OwnsPremium="@OwnsPremium"
-                    HasPremiumTier="@(_book?.PremiumPrice is not null)"
-                    OnDocumentSelected="OnDocumentSelectedFromModal"
-                    OnUpgradeClick="OnUpgradeFromModal" />
-
-<BuyBookModal @bind-IsOpen="_upgradeModalOpen"
-              Items="_upgradeItems"
-              OnPurchased="OnUpgradePurchased" />
-
 @code {
+    private const string ContainerId = "reader-canvas";
+
     [Parameter] public string BookUid { get; set; } = "";
-    [Parameter] public string DocUid { get; set; } = "";
 
-    private const double MinZoom = 0.5;
-    private const double MaxZoom = 4.0;
-    private const int ProgressSaveDebounceMs = 1500;
-
-    private readonly string _containerId = $"pdf-viewer-{Guid.NewGuid():N}";
-    private Book? _book;
-    private BookDocs? _currentDoc;
-    private List<Book> _libraryBooks = [];
-    private UserLibrary? _libraryEntry;
-    private bool _isFavorite;
-    private bool _loading = true;
-    private string? _error;
-    private int _currentPage = 1;
-    private int _totalPages;
-    private double _zoom = 1.0;
-    private string? _loadedForKey;
-    private CancellationTokenSource? _progressSaveCts;
-    private string _pageInputValue = "";
-    private bool _docListOpen;
-    private bool _upgradeModalOpen;
-    private List<CheckoutItem> _upgradeItems = [];
-
-    private bool OwnsPremium => _libraryEntry?.IsPremium ?? false;
+    private Book?       _book;
+    private UserLibrary? _entry;
+    private List<Book>  _libraryBooks = [];
+    private string?     _error;
+    private bool        _loading = true;
+    private bool        _isFavorite;
+    private int         _page = 1;
+    private int         _totalPages;
+    private string?     _loadedBookUid;
 
     protected override async Task OnParametersSetAsync()
     {
-        if (!AuthState.IsAuthenticated) return;
-
-        var key = $"{BookUid}/{DocUid}";
-        if (_loadedForKey == key) return;
-        _loadedForKey = key;
-
-        await EnsureLibraryLoadedAsync();
-        await LoadDocumentAsync();
+        if (!AuthState.IsAuthenticated || _loadedBookUid == BookUid) return;
+        await LoadAsync();
     }
 
-    private async Task EnsureLibraryLoadedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (LibraryCache.TryGetMyLibrary(out var cached))
-        {
-            _libraryBooks = cached;
-        }
-        else
-        {
-            try
-            {
-                _libraryBooks = await AppService.GetMyLibraryBooks();
-                LibraryCache.SetMyLibrary(_libraryBooks);
-            }
-            catch (Exception)
-            {
-                _libraryBooks = [];
-            }
-        }
-
-        _book = _libraryBooks.FirstOrDefault(b => b.Uid == BookUid);
-        _currentDoc = _book?.Documents.FirstOrDefault(d => d.Uid == DocUid);
-        _libraryEntry = AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == BookUid);
-        _isFavorite = _libraryEntry?.IsFavorite ?? false;
+        // The auth state can land after the first render; pick the book up then.
+        if (AuthState.IsAuthenticated && _loadedBookUid != BookUid && _error is null && !_rendering)
+            await LoadAsync();
     }
 
-    private async Task LoadDocumentAsync()
+    private bool _rendering;
+
+    private async Task LoadAsync()
     {
-        _loading = true;
-        _error = null;
-        _totalPages = 0;
-        _currentPage = 1;
-        _zoom = 1.0;
+        _rendering     = true;
+        _loading       = true;
+        _error         = null;
+        _loadedBookUid = BookUid;
         StateHasChanged();
 
         try
         {
-            if (!LibraryCache.TryGetDocument(BookUid, DocUid, out var bytes))
+            _libraryBooks = await AppService.GetMyLibraryBooks();
+            _book         = _libraryBooks.FirstOrDefault(b => b.Uid == BookUid);
+
+            if (_book is null)
             {
-                bytes = await AppService.GetBookDocumentBytes(BookUid, DocUid);
-                LibraryCache.SetDocument(BookUid, DocUid, bytes);
+                _error = "This book isn't in your library.";
+                return;
+            }
+
+            _entry      = AuthState.CurrentUser?.Library.FirstOrDefault(l => l.Uid == BookUid);
+            _isFavorite = _entry?.IsFavorite == true;
+
+            // A presigned URL is reused while it's still valid, so re-opening a book
+            // in the same session costs nothing.
+            if (!LibraryCache.TryGetReadUrl(BookUid, out var url))
+            {
+                var readUrl = await AppService.GetBookReadUrl(BookUid);
+                LibraryCache.SetReadUrl(BookUid, readUrl);
+                url = readUrl.Url;
             }
 
             _loading = false;
             StateHasChanged();
 
-            _totalPages = await JsInterop.LoadPdfAsync(_containerId, bytes);
-            _currentPage = 1;
+            _totalPages = await JsInterop.LoadPdfFromUrlAsync(ContainerId, url);
 
-            var savedProgress = _libraryEntry?.DocumentsProgress.FirstOrDefault(d => d.DocUid == DocUid);
-            if (savedProgress is not null && savedProgress.Page > 1)
-            {
-                _currentPage = await JsInterop.GoToPdfPageAsync(_containerId, Math.Min(savedProgress.Page, _totalPages));
-            }
+            var resumeAt = _entry?.LastReadPage ?? 0;
+            _page = resumeAt is > 0 && resumeAt <= _totalPages ? resumeAt : 1;
+
+            if (_page > 1)
+                await JsInterop.GoToPdfPageAsync(ContainerId, _page);
         }
         catch (ApiUnavailableException ex)
         {
             _error = ex.Message;
         }
-        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-        {
-            _error = "You do not have access to this document.";
-        }
         catch (Exception)
         {
-            _error = "Could not load this document. Please try again.";
+            _error = "Could not open this book. Please try again.";
         }
         finally
         {
-            _loading = false;
+            _loading   = false;
+            _rendering = false;
             StateHasChanged();
         }
     }
 
-    private Task PrevPage() => GoToPage(_currentPage - 1);
-
-    private Task NextPage() => GoToPage(_currentPage + 1);
-
-    private async Task GoToPage(int page)
+    private async Task GoToPageAsync(int page)
     {
-        if (_loading || _error is not null) return;
-        _currentPage = await JsInterop.GoToPdfPageAsync(_containerId, page);
-        ScheduleProgressSave();
-        StateHasChanged();
+        _page = await JsInterop.GoToPdfPageAsync(ContainerId, page);
+        await SaveProgressAsync();
     }
 
-    private async Task OnPageInputChanged(ChangeEventArgs e)
+    private Task ZoomAsync(int delta) => JsInterop.ZoomPdfAsync(ContainerId, delta);
+
+    // Progress is written on page turns only, which is where it actually changes.
+    private async Task SaveProgressAsync()
     {
-        _pageInputValue = e.Value?.ToString() ?? "";
-        await CommitPageInput();
+        AuthState.UpdateLocalReadingProgress(BookUid, _page, _totalPages);
+
+        try   { await AppService.SaveReadingProgress(BookUid, _page, _totalPages); }
+        catch { /* losing a progress ping must not interrupt reading */ }
     }
 
-    private async Task CommitPageInput()
+    private async Task ToggleFavoriteAsync()
     {
-        if (int.TryParse(_pageInputValue, out var page) && page != _currentPage)
-            await GoToPage(page);
+        _isFavorite = !_isFavorite;
+        if (_entry is not null) _entry.IsFavorite = _isFavorite;
 
-        _pageInputValue = "";
+        try   { await AppService.SetFavorite(BookUid, _isFavorite); }
+        catch { _isFavorite = !_isFavorite; }
     }
 
-    private async Task ZoomIn()
+    private async Task OnBookChanged(ChangeEventArgs e)
     {
-        if (_loading || _error is not null) return;
-        _zoom = await JsInterop.ZoomPdfAsync(_containerId, 1);
-        StateHasChanged();
+        var uid = e.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(uid) || uid == BookUid) return;
+
+        await JsInterop.DisposePdfAsync(ContainerId);
+        Nav.NavigateTo($"read/{uid}");
     }
 
-    private async Task ZoomOut()
+    private void BackToLibrary() => Nav.NavigateTo("my-library");
+
+    public async ValueTask DisposeAsync()
     {
-        if (_loading || _error is not null) return;
-        _zoom = await JsInterop.ZoomPdfAsync(_containerId, -1);
-        StateHasChanged();
-    }
-
-    private async void ScheduleProgressSave()
-    {
-        _progressSaveCts?.Cancel();
-        var cts = new CancellationTokenSource();
-        _progressSaveCts = cts;
-        var pageToSave = _currentPage;
-        var totalPagesToSave = _totalPages;
-
-        try
-        {
-            await Task.Delay(ProgressSaveDebounceMs, cts.Token);
-            await AppService.SaveReadingProgress(BookUid, DocUid, pageToSave, totalPagesToSave);
-            AuthState.UpdateLocalReadingProgress(BookUid, DocUid, pageToSave, totalPagesToSave);
-        }
-        catch (TaskCanceledException)
-        {
-        }
-    }
-
-    private async Task ToggleFavorite()
-    {
-        var newValue = !_isFavorite;
-        _isFavorite = newValue;
-        StateHasChanged();
-
-        await AppService.SetFavorite(BookUid, newValue);
-        _ = AuthState.RefreshProfileAsync();
-    }
-
-    private void OnDocumentSelectedFromModal(BookDocs doc)
-    {
-        if (doc.Uid == DocUid) return;
-        Nav.NavigateTo($"/read/{BookUid}/{doc.Uid}");
-    }
-
-    private void OnUpgradeFromModal()
-    {
-        if (_book is null || _book.PremiumPrice is null) return;
-
-        _upgradeItems =
-        [
-            new CheckoutItem(
-                _book.Uid,
-                $"{_book.Title ?? "Untitled"} — Premium Upgrade",
-                _book.ImageCoverUrl,
-                _book.Price,
-                _book.Description,
-                _book.PremiumPrice,
-                IsPremium: true,
-                IsUpgrade: true)
-        ];
-        _upgradeModalOpen = true;
-    }
-
-    private async Task OnUpgradePurchased()
-    {
-        LibraryCache.InvalidateMyLibrary();
-        await AuthState.RefreshProfileAsync();
-        await EnsureLibraryLoadedAsync();
-        StateHasChanged();
-    }
-
-    private void OnBookChanged(ChangeEventArgs e)
-    {
-        var newBookUid = e.Value?.ToString();
-        if (string.IsNullOrWhiteSpace(newBookUid) || newBookUid == BookUid) return;
-
-        var target = _libraryBooks.FirstOrDefault(b => b.Uid == newBookUid);
-        var firstDoc = target?.Documents.FirstOrDefault();
-        if (firstDoc is null) return;
-
-        Nav.NavigateTo($"/read/{newBookUid}/{firstDoc.Uid}");
-    }
-
-    private void BackToLibrary() => Nav.NavigateTo("/my-library");
-
-    public void Dispose()
-    {
-        _progressSaveCts?.Cancel();
-        if (_totalPages > 0 && _error is null)
-        {
-            _ = AppService.SaveReadingProgress(BookUid, DocUid, _currentPage, _totalPages);
-            AuthState.UpdateLocalReadingProgress(BookUid, DocUid, _currentPage, _totalPages);
-        }
-
-        _ = JsInterop.DisposePdfAsync(_containerId);
+        try   { await JsInterop.DisposePdfAsync(ContainerId); }
+        catch (JSDisconnectedException) { }
     }
 }

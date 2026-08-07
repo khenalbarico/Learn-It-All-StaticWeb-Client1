@@ -1,96 +1,59 @@
-@using System.ComponentModel.DataAnnotations
 @inject IAppService AppService
-@inject IAppAuthentication AppAuthentication
+@inject IAppAuthentication Auth
 
-<h3>Tell us about you</h3>
-<p class="form-hint">A few details to finish setting up your account.</p>
+<ErrorBanner Message="@_error" />
 
-@if (_prefilled)
-{
-    <p class="form-hint prefill-hint">
-        <Icon Name="check" Size="14" />
-        We've filled in what your sign-in provider shared. Please review and confirm it's correct.
-    </p>
-}
+<div class="field">
+    <label for="profile-first">First name</label>
+    <input id="profile-first" class="input" @bind="_firstName" @bind:event="oninput" autocomplete="given-name" />
+</div>
 
-<EditForm Model="_model" OnValidSubmit="Submit" class="auth-form">
-    <DataAnnotationsValidator />
+<div class="field">
+    <label for="profile-last">Last name</label>
+    <input id="profile-last" class="input" @bind="_lastName" @bind:event="oninput" autocomplete="family-name" />
+</div>
 
-    <div class="form-field">
-        <label for="prof-first">First name</label>
-        <InputText id="prof-first" autocomplete="given-name" @bind-Value="_model.FirstName" />
-        <ValidationMessage For="() => _model.FirstName" />
-    </div>
+<div class="field">
+    <label for="profile-phone">Phone number</label>
+    <input id="profile-phone" class="input" type="tel" @bind="_phone" @bind:event="oninput" autocomplete="tel" placeholder="09XXXXXXXXX" />
+</div>
 
-    <div class="form-field">
-        <label for="prof-last">Last name</label>
-        <InputText id="prof-last" autocomplete="family-name" @bind-Value="_model.LastName" />
-        <ValidationMessage For="() => _model.LastName" />
-    </div>
-
-    <div class="form-field">
-        <label for="prof-phone">Phone number</label>
-        <InputText id="prof-phone" autocomplete="tel" @bind-Value="_model.PhoneNumber" />
-        <ValidationMessage For="() => _model.PhoneNumber" />
-    </div>
-
-    @if (!string.IsNullOrEmpty(_error))
-    {
-        <p class="form-error">@_error</p>
-    }
-
-    <button type="submit" class="btn btn-primary btn-block" disabled="@_busy">
-        @(_busy ? "Saving..." : "Continue")
-    </button>
-</EditForm>
+<button class="btn btn-primary btn-block" @onclick="SubmitAsync" disabled="@(_busy || !IsValid)">
+    @if (_busy) { <span class="spinner"></span> } else { <text>Continue</text> }
+</button>
 
 @code {
-    [Parameter] public EventCallback OnProfileSaved { get; set; }
+    [Parameter] public EventCallback OnCompleted { get; set; }
 
-    private readonly ProfileModel _model = new();
+    private string  _firstName = "";
+    private string  _lastName = "";
+    private string  _phone = "";
     private string? _error;
-    private bool _busy;
-    private bool _prefilled;
+    private bool    _busy;
 
+    private bool IsValid
+        => !string.IsNullOrWhiteSpace(_firstName)
+        && !string.IsNullOrWhiteSpace(_lastName)
+        && !string.IsNullOrWhiteSpace(_phone);
+
+    // Prefill from whatever the identity provider gave us so most users just press Continue.
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            var hint = await AppAuthentication.GetProfileHintAsync();
-
-            if (!string.IsNullOrWhiteSpace(hint.FirstName))
-            {
-                _model.FirstName = hint.FirstName.Trim();
-                _prefilled = true;
-            }
-
-            if (!string.IsNullOrWhiteSpace(hint.LastName))
-            {
-                _model.LastName = hint.LastName.Trim();
-                _prefilled = true;
-            }
-
-            if (!string.IsNullOrWhiteSpace(hint.PhoneNumber))
-            {
-                _model.PhoneNumber = hint.PhoneNumber.Trim();
-                _prefilled = true;
-            }
-        }
-        catch (Exception)
-        {
-            // Prefill is a convenience only - fall back to a blank form silently.
-        }
+        var hint = await Auth.GetProfileHintAsync();
+        _firstName = hint.FirstName ?? "";
+        _lastName  = hint.LastName ?? "";
+        _phone     = hint.PhoneNumber ?? "";
     }
 
-    private async Task Submit()
+    private async Task SubmitAsync()
     {
+        _busy  = true;
         _error = null;
-        _busy = true;
 
         try
         {
-            await AppService.CreateUser(_model.FirstName.Trim(), _model.LastName.Trim(), _model.PhoneNumber.Trim());
-            await OnProfileSaved.InvokeAsync();
+            await AppService.CreateUser(_firstName.Trim(), _lastName.Trim(), _phone.Trim());
+            await OnCompleted.InvokeAsync();
         }
         catch (ApiUnavailableException ex)
         {
@@ -98,24 +61,11 @@
         }
         catch (Exception)
         {
-            _error = "Could not save your profile. Please try again.";
+            _error = "Could not save your details. Please try again.";
         }
         finally
         {
             _busy = false;
         }
-    }
-
-    private class ProfileModel
-    {
-        [Required(ErrorMessage = "Please enter your first name.")]
-        public string FirstName { get; set; } = "";
-
-        [Required(ErrorMessage = "Please enter your last name.")]
-        public string LastName { get; set; } = "";
-
-        [Required(ErrorMessage = "Please enter your phone number.")]
-        [Phone(ErrorMessage = "Please enter a valid phone number.")]
-        public string PhoneNumber { get; set; } = "";
     }
 }

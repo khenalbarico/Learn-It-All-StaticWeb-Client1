@@ -1,101 +1,45 @@
-<div class="book-card" @onclick="() => OnActionClick.InvokeAsync()">
-    <div class="book-card-cover-wrap">
-        <img class="book-card-cover" src="@_resolvedCover" alt="@Title cover" @onerror="OnImageError" />
-        @if (IsOwned)
+@* Storefront card: cover, title, price, and a commerce-orange Buy Now. *@
+
+<article class="book-card">
+    <div class="book-cover">
+        @if (!string.IsNullOrWhiteSpace(Book.ImageCoverUrl))
         {
-            <span class="book-card-owned-badge @(IsPremiumOwned ? "is-premium" : "")">
-                <Icon Name="@(IsPremiumOwned ? "star" : "check")" Size="12" />
-                @(IsPremiumOwned ? "Premium" : "Owned")
-            </span>
+            <img src="@Book.ImageCoverUrl" alt="Cover of @(Book.Title ?? "this book")" loading="lazy" />
         }
-        @if (ShowFavoriteToggle)
+        else
         {
-            <button class="book-card-favorite @(IsFavorite ? "is-favorite" : "")"
-                    @onclick="() => OnFavoriteToggle.InvokeAsync(!IsFavorite)" @onclick:stopPropagation="true"
-                    title="@(IsFavorite ? "Remove from favorites" : "Add to favorites")" aria-label="Toggle favorite">
-                <Icon Name="@(IsFavorite ? "heart-filled" : "heart")" Size="16" />
-            </button>
+            <div class="cover-placeholder"><Icon Name="menu_book" Size="48" /></div>
         }
     </div>
-    <div class="book-card-body">
-        <div class="book-card-title">@Title</div>
-        @if (!string.IsNullOrWhiteSpace(MetaText))
+
+    <div class="book-body">
+        <h3 class="book-title">@(Book.Title ?? "Untitled")</h3>
+
+        @if (!string.IsNullOrWhiteSpace(Book.Description))
         {
-            <div class="book-card-meta">@MetaText</div>
+            <p class="book-desc">@Book.Description</p>
         }
-        @if (!string.IsNullOrWhiteSpace(Description))
-        {
-            <p class="book-card-description">@Description</p>
-        }
-        @if (ShowFooter)
-        {
-            <div class="book-card-footer">
-                @if (ShowPrice)
-                {
-                    <span class="book-card-price">
-                        ₱@Price.ToString("N2")
-                        @if (PremiumPrice is decimal premium)
-                        {
-                            <span class="book-card-price-premium">★ ₱@premium.ToString("N2")</span>
-                        }
-                    </span>
-                }
-                else
-                {
-                    <span class="badge">Owned</span>
-                }
-                <div class="book-card-actions">
-                    @if (ShowAddToCartButton)
-                    {
-                        <button class="btn btn-ghost btn-icon @(IsInCart ? "is-in-cart" : "")" disabled="@IsInCart"
-                                @onclick="() => OnAddToCart.InvokeAsync()" @onclick:stopPropagation="true"
-                                title="@(IsInCart ? "In cart" : "Add to cart")" aria-label="@(IsInCart ? "In cart" : "Add to cart")">
-                            <Icon Name="@(IsInCart ? "check" : "cart")" Size="16" />
-                        </button>
-                    }
-                    @if (ShowActionButton)
-                    {
-                        <button class="btn btn-primary" @onclick="() => OnActionClick.InvokeAsync()" @onclick:stopPropagation="true">@ActionLabel</button>
-                    }
-                </div>
-            </div>
-        }
+
+        <div class="book-footer">
+            @if (IsOwned)
+            {
+                <span class="owned-tag"><Icon Name="check_circle" Size="16" /> Owned</span>
+                <button class="btn btn-primary btn-sm" @onclick="() => OnRead.InvokeAsync(Book)">Read Now</button>
+            }
+            else
+            {
+                <span class="book-price">@Book.Price.ToString("C0", PhCulture)</span>
+                <button class="btn btn-commerce btn-sm" @onclick="() => OnBuy.InvokeAsync(Book)">Buy Now</button>
+            }
+        </div>
     </div>
-</div>
+</article>
 
 @code {
-    [Parameter] public string Title { get; set; } = "";
-    [Parameter] public string? CoverImageUrl { get; set; }
-    [Parameter] public string? MetaText { get; set; }
-    [Parameter] public string? Description { get; set; }
-    [Parameter] public decimal Price { get; set; }
-    [Parameter] public decimal? PremiumPrice { get; set; }
+    [Parameter, EditorRequired] public Book Book { get; set; } = new();
     [Parameter] public bool IsOwned { get; set; }
-    [Parameter] public bool IsPremiumOwned { get; set; }
-    [Parameter] public bool ShowPrice { get; set; } = true;
-    [Parameter] public bool ShowFooter { get; set; } = true;
-    [Parameter] public string ActionLabel { get; set; } = "Buy";
-    [Parameter] public bool ShowActionButton { get; set; } = true;
-    [Parameter] public EventCallback OnActionClick { get; set; }
-    [Parameter] public bool ShowAddToCartButton { get; set; }
-    [Parameter] public bool IsInCart { get; set; }
-    [Parameter] public EventCallback OnAddToCart { get; set; }
-    [Parameter] public bool ShowFavoriteToggle { get; set; }
-    [Parameter] public bool IsFavorite { get; set; }
-    [Parameter] public EventCallback<bool> OnFavoriteToggle { get; set; }
+    [Parameter] public EventCallback<Book> OnBuy { get; set; }
+    [Parameter] public EventCallback<Book> OnRead { get; set; }
 
-    private string _resolvedCover = "imgs/app_logo.png";
-    private bool _fallbackApplied;
-
-    protected override void OnParametersSet()
-    {
-        if (!_fallbackApplied)
-            _resolvedCover = string.IsNullOrWhiteSpace(CoverImageUrl) ? "imgs/app_logo.png" : CoverImageUrl!;
-    }
-
-    private void OnImageError()
-    {
-        _fallbackApplied = true;
-        _resolvedCover = "imgs/app_logo.png";
-    }
+    private static readonly System.Globalization.CultureInfo PhCulture = new("en-PH");
 }

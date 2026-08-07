@@ -1,16 +1,32 @@
 using System.Net;
 using BlazorApp1.Models;
 using BlazorApp1.Services.ApiService;
+using BlazorApp1.Services.Caching;
 
 namespace BlazorApp1.Services.App;
 
-public class AppService(IApiClient _api) : IAppService
+public class AppService(IApiClient _api, LibraryCacheService _cache) : IAppService
 {
-    public Task<List<Book>> GetAllBooks()
-        => _api.GetAsync<List<Book>>(ApiFunctions.GetAllBooks);
+    // Book metadata is fetched once per session and served from cache thereafter —
+    // browsing the store must not cost a Function call per navigation.
+    public async Task<List<Book>> GetAllBooks()
+    {
+        if (_cache.TryGetAllBooks(out var cached)) return cached;
 
-    public Task<List<Book>> GetBooksByCategory(string category)
-        => _api.GetAsync<List<Book>>(ApiFunctions.GetBooksByCategory, new { Category = category });
+        var books = await _api.GetAsync<List<Book>>(ApiFunctions.GetAllBooks);
+        _cache.SetAllBooks(books);
+        return books;
+    }
+
+    // Same cache pattern; invalidated on purchase so a new book shows up immediately.
+    public async Task<List<Book>> GetMyLibraryBooks()
+    {
+        if (_cache.TryGetMyLibrary(out var cached)) return cached;
+
+        var books = await _api.GetAsync<List<Book>>(ApiFunctions.GetMyLibraryBooks);
+        _cache.SetMyLibrary(books);
+        return books;
+    }
 
     public async Task<UserInfo?> TryGetUserInfo()
     {
@@ -20,84 +36,23 @@ public class AppService(IApiClient _api) : IAppService
         }
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
+            // No profile record yet — the caller shows the "tell me about yourself" form.
             return null;
         }
     }
 
     public Task CreateUser(string firstName, string lastName, string phoneNumber)
-        => _api.SubmitAsync(ApiFunctions.CreateUser, new
-        {
-            FirstName = firstName,
-            LastName = lastName,
-            PhoneNumber = phoneNumber
-        });
+        => _api.SubmitAsync(ApiFunctions.CreateUser, new { FirstName = firstName, LastName = lastName, PhoneNumber = phoneNumber });
 
-    public Task RecordPurchase(string bookUid, string orderId, string purchaseToken, decimal priceAtPurchase)
-        => _api.SubmitAsync(ApiFunctions.RecordPurchase, new
-        {
-            BookUid = bookUid,
-            OrderId = orderId,
-            PurchaseToken = purchaseToken,
-            PriceAtPurchase = priceAtPurchase
-        });
+    public Task<BookReadUrl> GetBookReadUrl(string bookUid)
+        => _api.GetAsync<BookReadUrl>(ApiFunctions.GetBookReadUrl, new { BookUid = bookUid });
 
-    public Task<byte[]> GetBookDocumentBytes(string bookUid, string docUid)
-        => _api.GetBytesAsync(ApiFunctions.StreamBookDocument, new { BookUid = bookUid, DocUid = docUid });
+    public Task LogActivity(string activity)
+        => _api.SubmitAsync(ApiFunctions.LogActivity, new { Activity = activity });
 
-    public Task<List<Book>> GetMyLibraryBooks()
-        => _api.GetAsync<List<Book>>(ApiFunctions.GetMyLibraryBooks);
-
-    public async Task LogActivity(string activity)
-    {
-        try
-        {
-            await _api.SubmitAsync(ApiFunctions.LogActivity, new { Activity = activity });
-        }
-        catch (Exception)
-        {
-            // best-effort; a failed activity log must never affect the user's actual action
-        }
-    }
-
-    public Task UpdateUserKeywords(List<string> keywords)
-        => _api.SubmitAsync(ApiFunctions.UpdateUserKeywords, new { Keywords = keywords });
-
-    public async Task SaveReadingProgress(string bookUid, string docUid, int page, int totalPages)
-    {
-        try
-        {
-            await _api.SubmitAsync(ApiFunctions.SaveReadingProgress, new { BookUid = bookUid, DocUid = docUid, Page = page, TotalPages = totalPages });
-        }
-        catch (Exception)
-        {
-            // best-effort; losing a progress-save must never interrupt reading
-        }
-    }
+    public Task SaveReadingProgress(string bookUid, int page, int totalPages)
+        => _api.SubmitAsync(ApiFunctions.SaveReadingProgress, new { BookUid = bookUid, Page = page, TotalPages = totalPages });
 
     public Task SetFavorite(string bookUid, bool isFavorite)
         => _api.SubmitAsync(ApiFunctions.SetFavorite, new { BookUid = bookUid, IsFavorite = isFavorite });
-
-    public async Task AddToCart(string bookUid, bool isPremium = false)
-    {
-        try
-        {
-            await _api.SubmitAsync(ApiFunctions.AddToCart, new { BookUid = bookUid, IsPremium = isPremium });
-        }
-        catch (Exception)
-        {
-            // best-effort; the optimistic local cart update already reflected the action
-        }
-    }
-
-    public async Task RemoveFromCart(string bookUid)
-    {
-        try
-        {
-            await _api.SubmitAsync(ApiFunctions.RemoveFromCart, new { BookUid = bookUid });
-        }
-        catch (Exception)
-        {
-            // best-effort; the optimistic local cart update already reflected the action
-        }
-    }
 }

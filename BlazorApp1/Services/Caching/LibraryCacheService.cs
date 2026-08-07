@@ -4,32 +4,12 @@ namespace BlazorApp1.Services.Caching;
 
 public class LibraryCacheService
 {
-    private const int MaxCachedDocuments = 5;
-
-    private readonly Dictionary<string, List<Book>> _categoryCache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, byte[]> _documentCache = [];
-    private readonly List<string> _documentCacheOrder = [];
-    private List<Book>? _myLibraryCache;
     private List<Book>? _allBooksCache;
-    private bool _keywordIconsPreloaded;
+    private List<Book>? _myLibraryCache;
 
-    public bool TryGetCategory(string category, out List<Book> books)
-        => _categoryCache.TryGetValue(category, out books!);
-
-    public void SetCategory(string category, List<Book> books)
-        => _categoryCache[category] = books;
-
-    public bool TryGetMyLibrary(out List<Book> books)
-    {
-        books = _myLibraryCache ?? [];
-        return _myLibraryCache is not null;
-    }
-
-    public void SetMyLibrary(List<Book> books)
-        => _myLibraryCache = books;
-
-    public void InvalidateMyLibrary()
-        => _myLibraryCache = null;
+    // Presigned read URLs are reusable until they expire, so re-opening a book within
+    // a session doesn't cost another API call.
+    private readonly Dictionary<string, BookReadUrl> _readUrlCache = [];
 
     public bool TryGetAllBooks(out List<Book> books)
     {
@@ -37,43 +17,39 @@ public class LibraryCacheService
         return _allBooksCache is not null;
     }
 
-    public void SetAllBooks(List<Book> books)
-        => _allBooksCache = books;
+    public void SetAllBooks(List<Book> books) => _allBooksCache = books;
 
-    public bool TryMarkKeywordIconsPreloaded()
+    public bool TryGetMyLibrary(out List<Book> books)
     {
-        if (_keywordIconsPreloaded) return false;
-        _keywordIconsPreloaded = true;
+        books = _myLibraryCache ?? [];
+        return _myLibraryCache is not null;
+    }
+
+    public void SetMyLibrary(List<Book> books) => _myLibraryCache = books;
+
+    public void InvalidateMyLibrary() => _myLibraryCache = null;
+
+    public bool TryGetReadUrl(string bookUid, out string url)
+    {
+        url = "";
+
+        if (!_readUrlCache.TryGetValue(bookUid, out var entry)) return false;
+        if (DateTime.UtcNow >= entry.ExpiresAt.AddMinutes(-5))
+        {
+            _readUrlCache.Remove(bookUid);
+            return false;
+        }
+
+        url = entry.Url;
         return true;
     }
 
-    public bool TryGetDocument(string bookUid, string docUid, out byte[] bytes)
-        => _documentCache.TryGetValue(DocumentKey(bookUid, docUid), out bytes!);
-
-    public void SetDocument(string bookUid, string docUid, byte[] bytes)
-    {
-        var key = DocumentKey(bookUid, docUid);
-
-        if (!_documentCache.ContainsKey(key) && _documentCacheOrder.Count >= MaxCachedDocuments)
-        {
-            var oldest = _documentCacheOrder[0];
-            _documentCacheOrder.RemoveAt(0);
-            _documentCache.Remove(oldest);
-        }
-
-        _documentCache[key] = bytes;
-        _documentCacheOrder.Remove(key);
-        _documentCacheOrder.Add(key);
-    }
-
-    private static string DocumentKey(string bookUid, string docUid) => $"{bookUid}/{docUid}";
+    public void SetReadUrl(string bookUid, BookReadUrl readUrl) => _readUrlCache[bookUid] = readUrl;
 
     public void ClearAll()
     {
-        _categoryCache.Clear();
+        _allBooksCache  = null;
         _myLibraryCache = null;
-        _allBooksCache = null;
-        _documentCache.Clear();
-        _documentCacheOrder.Clear();
+        _readUrlCache.Clear();
     }
 }

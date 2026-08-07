@@ -21,12 +21,6 @@ public class JsInteropService(IJSRuntime _jsRuntime)
         await module.InvokeVoidAsync("setItem", key, value);
     }
 
-    public async Task RemoveItemAsync(string key)
-    {
-        var module = await GetModuleAsync();
-        await module.InvokeVoidAsync("removeItem", key);
-    }
-
     public async Task SetThemeAttributeAsync(string theme)
     {
         var module = await GetModuleAsync();
@@ -39,10 +33,10 @@ public class JsInteropService(IJSRuntime _jsRuntime)
         return await module.InvokeAsync<bool>("prefersDarkColorScheme");
     }
 
-    public async Task<int> LoadPdfAsync(string containerId, byte[] bytes)
+    public async Task<int> LoadPdfFromUrlAsync(string containerId, string url)
     {
         var module = await GetModuleAsync();
-        return await module.InvokeAsync<int>("loadPdf", containerId, bytes);
+        return await module.InvokeAsync<int>("loadPdfFromUrl", containerId, url);
     }
 
     public async Task<int> GoToPdfPageAsync(string containerId, int pageNum)
@@ -61,12 +55,6 @@ public class JsInteropService(IJSRuntime _jsRuntime)
     {
         var module = await GetModuleAsync();
         await module.InvokeVoidAsync("disposePdf", containerId);
-    }
-
-    public async Task PreloadImagesAsync(IEnumerable<string> urls)
-    {
-        var module = await GetModuleAsync();
-        await module.InvokeVoidAsync("preloadImages", urls);
     }
 
     public async Task PushAdsbygoogleAsync()
