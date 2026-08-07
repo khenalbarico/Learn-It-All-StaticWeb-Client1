@@ -1,7 +1,20 @@
 self.importScripts('./service-worker-assets.js');
 self.addEventListener('install', event => event.waitUntil(onInstall(event)));
 self.addEventListener('activate', event => event.waitUntil(onActivate(event)));
-self.addEventListener('fetch', event => event.respondWith(onFetch(event)));
+self.addEventListener('fetch', event => {
+    // Only intercept what this worker could actually serve. Presigned R2 book URLs are
+    // cross-origin and can never be cached here, so routing them through respondWith()
+    // puts the worker in the path of a request it cannot help with — and turns a plain
+    // network or CORS rejection into a second, unhandled rejection inside the worker.
+    // Declining to respond hands the request straight back to the browser.
+    if (!shouldHandle(event.request)) return;
+
+    event.respondWith(onFetch(event));
+});
+
+function shouldHandle(request) {
+    return request.method === 'GET' && new URL(request.url).origin === self.origin;
+}
 
 const cacheNamePrefix = 'offline-cache-';
 const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
@@ -36,16 +49,14 @@ async function onActivate(event) {
     await self.clients.claim();
 }
 
+// Reached only for same-origin GETs; shouldHandle() has already filtered the rest.
 async function onFetch(event) {
-    let cachedResponse = null;
-    if (event.request.method === 'GET') {
-        const shouldServeIndexHtml = event.request.mode === 'navigate'
-            && !manifestUrlList.some(url => url === event.request.url);
+    const shouldServeIndexHtml = event.request.mode === 'navigate'
+        && !manifestUrlList.some(url => url === event.request.url);
 
-        const request = shouldServeIndexHtml ? 'index.html' : event.request;
-        const cache = await caches.open(cacheName);
-        cachedResponse = await cache.match(request);
-    }
+    const request = shouldServeIndexHtml ? 'index.html' : event.request;
+    const cache = await caches.open(cacheName);
+    const cachedResponse = await cache.match(request);
 
     return cachedResponse || fetch(event.request);
 }

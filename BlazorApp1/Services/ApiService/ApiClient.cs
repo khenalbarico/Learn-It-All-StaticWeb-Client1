@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using BlazorApp1.Models;
 using BlazorApp1.Services.AuthService;
 
@@ -51,10 +52,46 @@ public class ApiClient(HttpClient _http, IAppAuthentication _auth) : IApiClient
         return response;
     }
 
+    // The API answers with a deliberate status per failure mode; EnsureSuccessStatusCode
+    // would flatten all of them into one opaque HttpRequestException and the UI could only
+    // ever guess. Translate them back into something callers can act on.
+    private static async Task ThrowIfFailedAsync(HttpResponseMessage response)
+    {
+        if (response.IsSuccessStatusCode) return;
+
+        var body = await response.Content.ReadAsStringAsync();
+
+        throw response.StatusCode switch
+        {
+            HttpStatusCode.Conflict           => new AlreadyOwnedException(Describe(body, "You already own this book.")),
+            HttpStatusCode.TooManyRequests    => new TooManyAttemptsException(Describe(body, "Too many attempts. Please wait a moment."), RetryAfterFrom(body)),
+            HttpStatusCode.BadGateway         => new PaymentProviderUnavailableException(Describe(body, "The payment provider is unavailable. Please try again shortly.")),
+            // The status must be carried on the exception, not just in its text: TryGetUserInfo
+            // filters on StatusCode == NotFound to detect a first-time user, and a null there
+            // silently turns "no profile yet" into a hard error that hides the setup form.
+            _                                 => new HttpRequestException($"{(int)response.StatusCode}: {body}", null, response.StatusCode)
+        };
+    }
+
+    // Errors arrive either as a bare string or as { message, retryAfterSeconds }.
+    private static string Describe(string body, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return fallback;
+
+        try   { return JsonDocument.Parse(body).RootElement.TryGetProperty("message", out var m) ? m.GetString() ?? fallback : body.Trim('"'); }
+        catch { return body.Trim('"'); }
+    }
+
+    private static int RetryAfterFrom(string body)
+    {
+        try   { return JsonDocument.Parse(body).RootElement.TryGetProperty("retryAfterSeconds", out var s) ? s.GetInt32() : 0; }
+        catch { return 0; }
+    }
+
     public async Task<T> GetAsync<T>(ApiFunctions apiFunction, object? payload = null)
     {
         var response = await SendAsync(apiFunction, payload);
-        response.EnsureSuccessStatusCode();
+        await ThrowIfFailedAsync(response);
 
         return (await response.Content.ReadFromJsonAsync<T>())!;
     }
@@ -65,6 +102,6 @@ public class ApiClient(HttpClient _http, IAppAuthentication _auth) : IApiClient
     public async Task SubmitAsync(ApiFunctions apiFunction, object? payload = null)
     {
         var response = await SendAsync(apiFunction, payload);
-        response.EnsureSuccessStatusCode();
+        await ThrowIfFailedAsync(response);
     }
 }

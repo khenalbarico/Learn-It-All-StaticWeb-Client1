@@ -40,6 +40,7 @@
                                 <span class="spinner"></span>
                                 <span>Waiting for your payment — this screen updates on its own.</span>
                             </p>
+                            <p class="form-hint">Keep this open until it confirms. If you close it after paying, the book still arrives — check My Library.</p>
                         </div>
                         break;
 
@@ -48,6 +49,16 @@
                             <Icon Name="check_circle" Size="56" Filled="true" CssClass="" />
                             <p><strong>@Book.Title</strong> has been added to your library.</p>
                             <button class="btn btn-primary" @onclick="RequestClose">Go to My Library</button>
+                        </div>
+                        break;
+
+                    @* Checkout never started, so no money moved for *this* attempt — but an
+                       earlier attempt may still be settling, hence the softer wording. *@
+                    case State.Retryable:
+                        <div class="qr-panel">
+                            <Icon Name="error" Size="56" />
+                            <p>We couldn't open the payment screen just now.</p>
+                            <button class="btn btn-primary" @onclick="StartAsync">Try again</button>
                         </div>
                         break;
 
@@ -73,7 +84,9 @@
 }
 
 @code {
-    private enum State { Creating, AwaitingPayment, Paid, Expired, Failed }
+    // Failed means PayMongo told us the payment itself did not go through — only then is it
+    // safe to say nothing was charged. Retryable means we never got as far as asking.
+    private enum State { Creating, AwaitingPayment, Paid, Expired, Failed, Retryable }
 
     [Parameter] public Book? Book { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
@@ -119,20 +132,37 @@
             _payment     = await PaymentService.CreatePaymentIntent(Book.Uid);
             _secondsLeft = Math.Max((int)(_payment.ExpiresAt - DateTime.UtcNow).TotalSeconds, 0);
             _state       = State.AwaitingPayment;
+            _ticks       = 0;
 
             // One tick a second drives the countdown; the API is asked far less often so
             // waiting at the QR screen stays cheap.
             _poller = new Timer(_ => InvokeAsync(TickAsync), null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
         }
-        catch (ApiUnavailableException ex)
+        // The payment already landed — most likely it settled by webhook after this modal
+        // was closed. Saying "nothing has been charged" here would be a lie to someone who
+        // has in fact paid, so treat it as the success it is.
+        catch (AlreadyOwnedException)
+        {
+            _state = State.Paid;
+            await AuthState.OnPurchaseCompletedAsync();
+            await OnPurchased.InvokeAsync();
+        }
+        catch (TooManyAttemptsException ex)
+        {
+            _error = ex.RetryAfterSeconds > 0
+                ? $"{ex.Message} You can try again in {ex.RetryAfterSeconds}s."
+                : ex.Message;
+            _state = State.Retryable;
+        }
+        catch (Exception ex) when (ex is ApiUnavailableException or PaymentProviderUnavailableException)
         {
             _error = ex.Message;
-            _state = State.Failed;
+            _state = State.Retryable;
         }
         catch (Exception)
         {
             _error = "Could not start the payment. Please try again.";
-            _state = State.Failed;
+            _state = State.Retryable;
         }
 
         StateHasChanged();
@@ -214,7 +244,24 @@
 
     private async Task RequestClose()
     {
+        // A QR being dismissed may have been scanned seconds ago. One last authoritative
+        // check on the way out catches a payment that landed between polls, so closing the
+        // window can't strand a purchase the buyer has already made.
+        var wasAwaitingPayment = _state == State.AwaitingPayment;
+
         await StopPollingAsync();
+
+        if (wasAwaitingPayment)
+        {
+            await CheckStatusAsync(true);
+
+            if (_state == State.Paid)
+            {
+                StateHasChanged();
+                return;
+            }
+        }
+
         _startedForBookUid = null;
         await OnClose.InvokeAsync();
     }
