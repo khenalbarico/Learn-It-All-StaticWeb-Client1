@@ -29,6 +29,6 @@ var host = builder.Build();
 await host.Services.GetRequiredService<ThemeService>().InitializeAsync();
 await host.Services.GetRequiredService<AuthSessionState>().InitializeAsync();
 
-Console.WriteLine($"[Learn It All] Initialized - {apiEnvironment} environment");
+Console.WriteLine($"[Learn It-All] Initialized - {apiEnvironment} environment");
 
 await host.RunAsync();

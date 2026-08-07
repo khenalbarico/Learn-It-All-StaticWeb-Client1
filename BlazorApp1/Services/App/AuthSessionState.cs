@@ -41,7 +41,7 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
         {
             // A misconfigured or unreachable identity provider must not stop the app from
             // booting — the storefront works signed out, so degrade to guest instead.
-            Console.WriteLine($"[Learn It All] Auth initialization failed: {ex.Message}");
+            Console.WriteLine($"[Learn It-All] Auth initialization failed: {ex.Message}");
             IsAuthenticated = false;
         }
 
@@ -107,6 +107,16 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
     public void CloseSignInModal()
     {
         SignInModalOpen = false;
+        OnChange?.Invoke();
+    }
+
+    // Parks a checkout that can't run yet — an authenticated user who still owes us a
+    // profile. The store page picks it back up once setup completes.
+    public void RememberPendingBook(string bookUid)
+    {
+        if (PendingBookUid == bookUid) return;
+
+        PendingBookUid = bookUid;
         OnChange?.Invoke();
     }
 

@@ -36,9 +36,10 @@
                             <span class="qr-timer @(_secondsLeft <= 30 ? "urgent" : "")">
                                 Expires in @($"{_secondsLeft / 60:0}:{_secondsLeft % 60:00}")
                             </span>
-                            <button class="btn btn-outline" @onclick="() => CheckStatusAsync(true)" disabled="@_checking">
-                                @if (_checking) { <span class="spinner"></span> } else { <text>I've paid — check now</text> }
-                            </button>
+                            <p class="qr-waiting" role="status">
+                                <span class="spinner"></span>
+                                <span>Waiting for your payment — this screen updates on its own.</span>
+                            </p>
                         </div>
                         break;
 
@@ -85,6 +86,7 @@
     private string?              _error;
     private bool                 _checking;
     private int                  _secondsLeft;
+    private int                  _ticks;
     private Timer?               _poller;
     private string?              _startedForBookUid;
 
@@ -118,8 +120,8 @@
             _secondsLeft = Math.Max((int)(_payment.ExpiresAt - DateTime.UtcNow).TotalSeconds, 0);
             _state       = State.AwaitingPayment;
 
-            // One tick a second drives the countdown; the API is only asked every third
-            // tick so waiting at the QR screen stays cheap.
+            // One tick a second drives the countdown; the API is asked far less often so
+            // waiting at the QR screen stays cheap.
             _poller = new Timer(_ => InvokeAsync(TickAsync), null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
         }
         catch (ApiUnavailableException ex)
@@ -136,7 +138,17 @@
         StateHasChanged();
     }
 
-    private int _ticks;
+    // A stored read only sees what the webhook already wrote, so it's cheap and runs often.
+    // The force-verify asks PayMongo directly and is the fallback for a webhook that never
+    // arrives — the job the removed "I've paid" button used to do by hand.
+    //
+    // The QR is valid for 15 minutes, but nobody pays it at a constant rate: the first couple
+    // of minutes are the active ones. Polling backs off after that so an abandoned tab doesn't
+    // spend the rest of the window billing Functions and Table Storage.
+    private const int ActivePhaseSeconds = 120;
+
+    private int StoredCheckSeconds => _ticks <= ActivePhaseSeconds ? 5 : 15;
+    private int ForceVerifySeconds => _ticks <= ActivePhaseSeconds ? 15 : 60;
 
     private async Task TickAsync()
     {
@@ -151,7 +163,9 @@
             return;
         }
 
-        if (_ticks % 3 == 0)
+        if (_ticks % ForceVerifySeconds == 0)
+            await CheckStatusAsync(true);
+        else if (_ticks % StoredCheckSeconds == 0)
             await CheckStatusAsync(false);
         else
             StateHasChanged();
@@ -162,7 +176,6 @@
         if (_payment is null || _checking) return;
 
         _checking = true;
-        StateHasChanged();
 
         try
         {
