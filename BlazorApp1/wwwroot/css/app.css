@@ -81,10 +81,16 @@ main { flex: 1 0 auto; padding-block: var(--space-4) var(--space-6); }
     border-radius: var(--radius);
     border: 1px solid transparent;
     cursor: pointer;
-    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+    transition: background-color var(--dur-fast) var(--ease-out),
+                color var(--dur-fast) var(--ease-out),
+                border-color var(--dur-fast) var(--ease-out),
+                transform var(--dur-fast) var(--ease-out);
     white-space: nowrap;
 }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
+/* A press should feel like it depresses. Scale only — moving the button would shift
+   whatever sits beside it. */
+.btn:not(:disabled):active { transform: scale(.97); }
 
 .btn-primary { background: var(--primary); color: var(--on-primary); }
 .btn-primary:not(:disabled):hover { background: var(--primary-container); }
@@ -160,14 +166,16 @@ main { flex: 1 0 auto; padding-block: var(--space-4) var(--space-6); }
 
 .header-nav { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
 
+/* The underline itself lives on ::after in the Motion section so it can slide in; the
+   padding here reserves the room it occupies. */
 .nav-link {
     font: var(--text-label-md);
     color: var(--on-surface-variant);
     padding: 0.25rem 0;
-    border-bottom: 2px solid transparent;
+    transition: color var(--dur-fast) var(--ease-out);
 }
 .nav-link:hover { color: var(--primary); text-decoration: none; }
-.nav-link.active { color: var(--primary); border-bottom-color: var(--primary); }
+.nav-link.active { color: var(--primary); }
 
 .header-actions { display: flex; align-items: center; gap: 0.25rem; flex-shrink: 0; }
 
@@ -279,9 +287,26 @@ main { flex: 1 0 auto; padding-block: var(--space-4) var(--space-6); }
     border: 1px solid var(--outline-variant);
     border-radius: var(--radius-lg);
     overflow: hidden;
-    transition: box-shadow .15s ease, transform .15s ease;
+    transition: box-shadow var(--dur-base) var(--ease-out),
+                transform var(--dur-base) var(--ease-out),
+                border-color var(--dur-base) var(--ease-out),
+                background-color var(--dur-base) var(--ease-out);
 }
-.book-card:hover { box-shadow: var(--shadow-hover); }
+/* The lift is deliberately 2px. Enough to register as "this is pickable", small enough
+   that a grid of them doesn't feel like it's twitching.
+
+   Gated on a real hover-capable pointer: touch browsers leave :hover latched on the last
+   element tapped, so on a phone an untouched grid would sit there with one card stuck in
+   the air until you tapped elsewhere. */
+@media (hover: hover) {
+    .book-card:hover {
+        box-shadow: var(--shadow-hover);
+        transform: translateY(-2px);
+        border-color: var(--outline);
+    }
+    .book-card:hover .book-cover img { transform: scale(1.03); }
+}
+.book-cover img { transition: transform var(--dur-slow) var(--ease-out); }
 
 .book-cover {
     position: relative;
@@ -395,7 +420,6 @@ main { flex: 1 0 auto; padding-block: var(--space-4) var(--space-6); }
     border-radius: var(--radius);
 }
 @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
-@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
 
 .spinner {
     width: 1.25rem;
@@ -621,6 +645,108 @@ main { flex: 1 0 auto; padding-block: var(--space-4) var(--space-6); }
 }
 #blazor-error-ui .reload, #blazor-error-ui .dismiss { cursor: pointer; color: inherit; text-decoration: underline; }
 #blazor-error-ui .dismiss { margin-left: auto; text-decoration: none; }
+
+/* ---- Motion -------------------------------------------------------------- */
+
+/* Everything below is opt-out via prefers-reduced-motion at the end of this section.
+   Transitions elsewhere in the file are intentionally left alone there: a colour fade
+   is not vestibular motion, and killing it would make the UI feel broken rather than
+   calm. Only movement is removed. */
+
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(0.75rem); } }
+@keyframes modal-in { from { opacity: 0; transform: scale(.96) translateY(0.5rem); } }
+@keyframes mark-in { from { opacity: 0; transform: scale(.4); } }
+@keyframes ring-out {
+    from { opacity: .5; transform: scale(.6); }
+    to   { opacity: 0;  transform: scale(1.6); }
+}
+
+/* Cards rise in on first paint, each a beat after the last. @key on the book UID means
+   Blazor reuses the DOM node for a card that was already on screen, so filtering the
+   catalogue animates only the newly-matched cards rather than restarting the whole grid
+   on every keystroke. */
+.book-grid > * { animation: rise-in var(--dur-slow) var(--ease-out) backwards; }
+.book-grid > *:nth-child(1)  { animation-delay: 0ms; }
+.book-grid > *:nth-child(2)  { animation-delay: calc(var(--stagger-step) * 1); }
+.book-grid > *:nth-child(3)  { animation-delay: calc(var(--stagger-step) * 2); }
+.book-grid > *:nth-child(4)  { animation-delay: calc(var(--stagger-step) * 3); }
+.book-grid > *:nth-child(5)  { animation-delay: calc(var(--stagger-step) * 4); }
+.book-grid > *:nth-child(6)  { animation-delay: calc(var(--stagger-step) * 5); }
+.book-grid > *:nth-child(7)  { animation-delay: calc(var(--stagger-step) * 6); }
+.book-grid > *:nth-child(8)  { animation-delay: calc(var(--stagger-step) * 7); }
+/* Past the fold the stagger stops earning its delay and just looks slow. */
+.book-grid > *:nth-child(n+9) { animation-delay: calc(var(--stagger-step) * 8); }
+
+.hero, .page-header, .empty-state, .centered-notice {
+    animation: rise-in var(--dur-slow) var(--ease-out) backwards;
+}
+
+.modal-backdrop { animation: fade-in var(--dur-base) var(--ease-out); }
+.modal { animation: modal-in var(--dur-base) var(--ease-out); }
+
+/* The one moment worth celebrating: a purchase that went through. The mark springs in
+   past its final size and a ring expands out from underneath it once. */
+.success-mark {
+    position: relative;
+    color: var(--success);
+    animation: mark-in var(--dur-slow) var(--ease-spring) backwards;
+}
+.success-mark::after {
+    content: '';
+    position: absolute;
+    inset: -0.5rem;
+    border-radius: var(--radius-full);
+    border: 2px solid var(--success);
+    animation: ring-out 600ms var(--ease-out) forwards;
+}
+
+/* Slide the active-page underline in from the centre rather than snapping it on. */
+.nav-link { position: relative; }
+.nav-link::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: var(--primary);
+    transform: scaleX(0);
+    transition: transform var(--dur-base) var(--ease-out);
+}
+.nav-link.active::after { transform: scaleX(1); }
+@media (hover: hover) {
+    .nav-link:hover::after { transform: scaleX(1); }
+}
+
+/* Switching theme repaints every surface at once; easing the large planes stops it
+   reading as a flash. Text and icons are left to switch instantly so nothing is
+   mid-contrast while the background moves.
+
+   .book-card is deliberately absent: it already declares a transition covering transform
+   and box-shadow for its hover lift, and listing it here would silently replace that
+   shorthand — the lift would snap instead of easing. Its colour easing is folded into
+   that declaration instead. */
+body, .site-header, .modal, .input {
+    transition: background-color var(--dur-base) var(--ease-out),
+                border-color var(--dur-base) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /* Movement removed, state still legible: hover keeps its shadow, the active nav item
+       keeps its underline, the success mark still appears — none of them travel. */
+    .book-grid > *,
+    .hero, .page-header, .empty-state, .centered-notice,
+    .modal-backdrop, .modal, .success-mark {
+        animation: none;
+    }
+    .success-mark::after { animation: none; opacity: 0; }
+    .book-card:hover, .book-card:hover .book-cover img { transform: none; }
+    .btn:not(:disabled):active { transform: none; }
+    .nav-link::after { transition: none; }
+    .skeleton { animation: none; }
+    .spinner { animation-duration: 1.4s; }
+}
 
 /* ---- Responsive ---------------------------------------------------------- */
 

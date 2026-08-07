@@ -145,4 +145,16 @@
     --margin-mobile: 1rem;
 
     --header-height: 4.5rem;
+
+    /* Motion. The design brief asks for institutional calm, so durations stay short enough
+       to read as responsiveness rather than decoration — nothing here is a set piece.
+       ease-out decelerates hard, which is what makes a transition feel settled instead of
+       mechanical; ease-spring overshoots slightly and is reserved for the one genuinely
+       celebratory moment (a completed purchase). */
+    --dur-fast: 120ms;
+    --dur-base: 180ms;
+    --dur-slow: 300ms;
+    --ease-out: cubic-bezier(.2, .8, .2, 1);
+    --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+    --stagger-step: 40ms;
 }
