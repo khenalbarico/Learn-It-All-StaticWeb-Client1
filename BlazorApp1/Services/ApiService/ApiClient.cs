@@ -35,7 +35,7 @@ public class ApiClient(HttpClient _http, IAppAuthentication _auth) : IApiClient
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             throw new ApiUnavailableException(
-                "Could not reach the Learn It-All server. Please check your internet connection and try again.",
+                "Could not reach the Learn It All server. Please check your internet connection and try again.",
                 ex);
         }
     }

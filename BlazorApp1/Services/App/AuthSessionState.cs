@@ -41,7 +41,7 @@ public class AuthSessionState(IAppAuthentication _auth, IAppService _appService,
         {
             // A misconfigured or unreachable identity provider must not stop the app from
             // booting — the storefront works signed out, so degrade to guest instead.
-            Console.WriteLine($"[Learn It-All] Auth initialization failed: {ex.Message}");
+            Console.WriteLine($"[Learn It All] Auth initialization failed: {ex.Message}");
             IsAuthenticated = false;
         }
 

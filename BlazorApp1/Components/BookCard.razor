@@ -1,16 +1,7 @@
 @* Storefront card: cover, title, price, and a commerce-orange Buy Now. *@
 
 <article class="book-card">
-    <div class="book-cover">
-        @if (!string.IsNullOrWhiteSpace(Book.ImageCoverUrl))
-        {
-            <img src="@Book.ImageCoverUrl" alt="Cover of @(Book.Title ?? "this book")" loading="lazy" />
-        }
-        else
-        {
-            <div class="cover-placeholder"><Icon Name="menu_book" Size="48" /></div>
-        }
-    </div>
+    <BookCover Url="@Book.ImageCoverUrl" Title="@Book.Title" />
 
     <div class="book-body">
         <h3 class="book-title">@(Book.Title ?? "Untitled")</h3>
